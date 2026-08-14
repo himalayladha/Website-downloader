@@ -1,0 +1,99 @@
+<div class="top-progress-bar-container">
+  <div id="progressBar" class="top-progress-bar"></div>
+</div>
+
+<nav class="navbar">
+  <div class="nav-container">
+    <div class="brand">
+      <div class="brand-icon">
+        <i class="fa-solid fa-download"></i>
+      </div>
+      <span class="brand-title">Website Downloader</span>
+    </div>
+  </div>
+</nav>
+
+<main class="main-container">
+  <div class="hero-section">
+    <h1 class="hero-title">Download Website Assets</h1>
+    <p class="hero-subtitle">
+      Extract source code, templates, stylesheets, scripts, and images into a single ZIP file.
+    </p>
+  </div>
+
+  <div class="main-card">
+    <div class="input-form">
+      <div class="input-wrapper">
+        <i class="fa-solid fa-globe input-icon"></i>
+        <input 
+          type="url" 
+          id="website" 
+          class="url-input" 
+          placeholder="https://example.com"
+          autocomplete="off"
+          spellcheck="false" 
+        />
+      </div>
+      <button type="button" id="download" class="btn-primary">
+        <i class="fa-solid fa-arrow-down-long"></i> Start Download
+      </button>
+    </div>
+
+    <div class="settings-panel">
+      <div class="setting-group">
+        <label for="scrapeMode" class="setting-label">Download Mode</label>
+        <select id="scrapeMode" class="setting-select">
+          <option value="single">Single Page</option>
+          <option value="all">All Linked Pages (Recursive)</option>
+        </select>
+      </div>
+      <div id="depthGroup" class="setting-group" style="display: none;">
+        <label for="maxDepth" class="setting-label">Max Recursive Depth</label>
+        <select id="maxDepth" class="setting-select">
+          <option value="unlimited" selected>Unlimited (All Pages)</option>
+          <option value="1">1 page deep</option>
+          <option value="2">2 pages deep</option>
+          <option value="3">3 pages deep</option>
+          <option value="4">4 pages deep</option>
+          <option value="5">5 pages deep</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="dashboard-status">
+      <div id="statusBadge" class="status-badge" style="display: none;">
+        Ready
+      </div>
+      <div id="nFilesP" class="files-counter" style="display: none;">
+        Downloaded Assets: <span id="nFiles" class="counter-number">0</span>
+      </div>
+    </div>
+
+    <div id="progressWrapper" class="progress-wrapper" style="display: none;">
+      <div class="progress-info">
+        <span id="progressStatus" class="progress-status">Downloading assets...</span>
+        <span id="progressPercent" class="progress-percentage">0%</span>
+      </div>
+      <div class="progress-track">
+        <div id="progressFill" class="progress-fill"></div>
+      </div>
+    </div>
+
+    <div class="terminal-container">
+      <div class="terminal-header">
+        <span class="terminal-title"><i class="fa-solid fa-terminal"></i> Console Log</span>
+      </div>
+      <div id="logConsole" class="terminal-body">
+        <div class="log-placeholder">
+          Enter a URL above and click <strong>Start Download</strong>.
+        </div>
+      </div>
+    </div>
+
+    <div class="action-footer">
+      <button id="finalDownloadBtn" class="btn-success" style="display: none;">
+        <i class="fa-solid fa-file-zipper"></i> Download ZIP Archive
+      </button>
+    </div>
+  </div>
+</main>

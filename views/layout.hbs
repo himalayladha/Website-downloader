@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Website Downloader</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+    <script src="/socket.io/socket.io.js"></script>
+  </head>
+  <body>
+    {{{body}}}
+  </body>
+  <script>
+    var numberOfFiles = 0;
+    const downloadWebsite = document.getElementById('finalDownloadBtn');
+    const logConsole = document.getElementById('logConsole');
+    const statusBadge = document.getElementById('statusBadge');
+    const nFilesContainer = document.getElementById('nFilesP');
+    const nFilesCount = document.getElementById('nFiles');
+    const downloadBtn = document.getElementById('download');
+    const websiteInput = document.getElementById('website');
+    const progressBar = document.getElementById('progressBar');
+
+    const progressWrapper = document.getElementById('progressWrapper');
+    const progressStatus = document.getElementById('progressStatus');
+    const progressPercent = document.getElementById('progressPercent');
+    const progressFill = document.getElementById('progressFill');
+
+    if (!localStorage['token']) {
+      localStorage['token'] = generateToken(20);
+    }
+
+    var socket = io.connect(document.URL);
+
+    socket.on(localStorage['token'], (event) => {
+      console.log(event);
+
+      if (event.progress === "Converting") {
+        if (progressBar) progressBar.style.width = "95%";
+        if (progressFill) progressFill.style.width = "95%";
+        if (progressPercent) progressPercent.innerText = "95%";
+        if (progressStatus) progressStatus.innerText = "Compressing assets into ZIP...";
+
+        if (statusBadge) {
+          statusBadge.innerHTML = '<i class="fa-solid fa-file-zipper fa-spin"></i> Compressing into ZIP...';
+          statusBadge.className = 'status-badge status-compressing';
+        }
+        appendLog("System", "Compressing assets into ZIP archive...");
+      }
+      else if (event.progress === "Completed") {
+        if (progressBar) progressBar.style.width = "100%";
+        if (progressFill) progressFill.style.width = "100%";
+        if (progressPercent) progressPercent.innerText = "100%";
+        if (progressStatus) progressStatus.innerText = "Download complete!";
+
+        setTimeout(() => { 
+          if (progressBar) progressBar.style.opacity = "0"; 
+        }, 600);
+        
+        if (statusBadge) {
+          statusBadge.innerHTML = '<i class="fa-solid fa-check"></i> Complete';
+          statusBadge.className = 'status-badge status-complete';
+        }
+        
+        appendLog("Success", `Zip archive ready (${event.file}.zip)`);
+        
+        if (downloadWebsite) {
+          downloadWebsite.style.display = 'inline-flex';
+          downloadWebsite.onclick = function() {
+            window.location = '/sites/' + event.file + ".zip";
+          };
+        }
+
+        if (downloadBtn) {
+          downloadBtn.disabled = false;
+          downloadBtn.innerHTML = '<i class="fa-solid fa-arrow-down-long"></i> Start Download';
+        }
+      }
+      else if (event.progress.startsWith("Scraping failed:")) {
+        if (progressStatus) progressStatus.innerText = "Error encountered";
+        if (progressFill) progressFill.style.backgroundColor = "var(--warning-color)";
+        if (statusBadge) {
+          statusBadge.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> Failed';
+          statusBadge.className = 'status-badge status-compressing';
+        }
+        appendLog("System", event.progress);
+      }
+      else {
+        if (event.progress.includes('200 OK')) {
+          numberOfFiles++;
+          if (nFilesContainer) nFilesContainer.style.display = 'inline-flex';
+          if (nFilesCount) nFilesCount.innerText = numberOfFiles;
+          
+          let pct = Math.min(90, 10 + Math.floor(numberOfFiles * 1.2));
+          if (progressBar) {
+            progressBar.style.width = pct + "%";
+            progressBar.style.opacity = "1";
+          }
+          if (progressFill) {
+            progressFill.style.width = pct + "%";
+          }
+          if (progressPercent) {
+            progressPercent.innerText = pct + "%";
+          }
+          if (progressStatus) {
+            progressStatus.innerText = `Downloading assets (${numberOfFiles} files saved)...`;
+          }
+        }
+
+        appendLog("Log", event.progress);
+      }
+    });
+
+    const scrapeModeSelect = document.getElementById('scrapeMode');
+    const depthGroup = document.getElementById('depthGroup');
+    const maxDepthSelect = document.getElementById('maxDepth');
+
+    if (scrapeModeSelect) {
+      scrapeModeSelect.onchange = () => {
+        if (scrapeModeSelect.value === 'all') {
+          depthGroup.style.display = 'flex';
+        } else {
+          depthGroup.style.display = 'none';
+        }
+      };
+    }
+
+    if (downloadBtn) {
+      downloadBtn.onclick = () => {
+        var website = websiteInput.value.trim();
+        if (!website) {
+          websiteInput.focus();
+          return;
+        }
+
+        numberOfFiles = 0;
+        if (nFilesCount) nFilesCount.innerText = '0';
+        if (nFilesContainer) nFilesContainer.style.display = 'inline-flex';
+        if (logConsole) logConsole.innerHTML = '';
+        if (downloadWebsite) downloadWebsite.style.display = 'none';
+
+        if (progressBar) {
+          progressBar.style.width = '10%';
+          progressBar.style.opacity = '1';
+        }
+
+        if (progressWrapper) {
+          progressWrapper.style.display = 'flex';
+        }
+        if (progressStatus) {
+          progressStatus.innerText = 'Initializing crawler...';
+        }
+        if (progressFill) {
+          progressFill.style.width = '10%';
+          progressFill.style.backgroundColor = 'var(--primary-color)';
+        }
+        if (progressPercent) {
+          progressPercent.innerText = '10%';
+        }
+
+        if (statusBadge) {
+          statusBadge.style.display = 'inline-flex';
+          statusBadge.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Downloading...';
+          statusBadge.className = 'status-badge status-active';
+        }
+
+        downloadBtn.disabled = true;
+        downloadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+
+        const recursive = scrapeModeSelect ? (scrapeModeSelect.value === 'all') : false;
+        const depthVal = maxDepthSelect ? maxDepthSelect.value : 'unlimited';
+        const maxRecursiveDepth = depthVal === 'unlimited' ? null : parseInt(depthVal, 10);
+
+        appendLog("Info", `Downloading ${website} (${recursive ? (maxRecursiveDepth ? `recursive up to ${maxRecursiveDepth} layers` : 'recursive unlimited') : 'single page'})...`);
+        socket.emit('request', { 
+          token: localStorage['token'], 
+          website,
+          recursive,
+          maxRecursiveDepth
+        });
+      };
+    }
+
+
+    function appendLog(type, text) {
+      if (!logConsole) return;
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      
+      let prefix = '>';
+      if (type === "Success") prefix = '✓';
+      if (type === "Info") prefix = 'i';
+      if (type === "System") prefix = '*';
+
+      line.innerHTML = `<span class="log-prefix">${prefix}</span> <span class="log-text">${escapeHtml(text)}</span>`;
+      logConsole.appendChild(line);
+      logConsole.scrollTop = logConsole.scrollHeight;
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function generateToken(n) {
+      var chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      var token = '';
+      for (var i = 0; i < n; i++) {
+        token += chars[Math.floor(Math.random() * chars.length)];
+      }
+      return token;
+    }
+  </script>
+</html>

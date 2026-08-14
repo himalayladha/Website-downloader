@@ -1,0 +1,32 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Dependency directory
+node_modules/
+
+# Ignore all root level entries by default
+/*
+
+# Whitelist standard source directories
+!/archiver/
+!/bin/
+!/public/
+!/routes/
+!/socket/
+!/views/
+!/wget/
+!/.github/
+
+# Whitelist standard source/config files
+!/.gitignore
+!/LICENSE.md
+!/README.md
+!/app.js
+!/app.json
+!/package.json
+!/package-lock.json
+
+# Ignore generated zips in public sites
+/public/sites/*.zip
