@@ -166,14 +166,15 @@ module.exports = async (io, data) => {
             }
         }
 
-        // If the format is text, convert the HTML files to structured Markdown
+        // If the format is text, convert the HTML files to structured TXT
         if (data.outputFormat === 'text') {
             io.emit(data.token, { progress: "Structuring extracted text..." });
             compileTextExtraction(targetDir, websiteFolder, websiteUrl);
+            io.emit(data.token, { progress: "Completed", file: websiteFolder });
+        } else {
+            io.emit(data.token, { progress: "Converting" });
+            archiver(websiteFolder, io, data);
         }
-
-        io.emit(data.token, { progress: "Converting" });
-        archiver(websiteFolder, io, data);
 
     } catch (err) {
         console.error("Scrape error:", err);
@@ -181,12 +182,15 @@ module.exports = async (io, data) => {
             if (data.outputFormat === 'text') {
                 try {
                     compileTextExtraction(targetDir, websiteFolder, websiteUrl);
+                    io.emit(data.token, { progress: "Completed", file: websiteFolder });
                 } catch (compileErr) {
                     console.error("Failed to compile text after error:", compileErr);
+                    io.emit(data.token, { progress: `Scraping failed: ${err.message}` });
                 }
+            } else {
+                io.emit(data.token, { progress: "Converting" });
+                archiver(websiteFolder, io, data);
             }
-            io.emit(data.token, { progress: "Converting" });
-            archiver(websiteFolder, io, data);
         } else {
             io.emit(data.token, { progress: `Scraping failed: ${err.message}` });
         }
@@ -224,9 +228,22 @@ function extractCleanMarkdown(html) {
     
     let markdown = '';
     
-    // Select headers, paragraphs, list items, code blocks, and blockquotes in document order
-    $('h1, h2, h3, h4, h5, h6, p, li, pre, code, blockquote').each((i, el) => {
+    // Select headers, paragraphs, list items, code blocks, blockquotes, and images in document order
+    $('h1, h2, h3, h4, h5, h6, p, li, pre, code, blockquote, img').each((i, el) => {
         const tagName = el.tagName.toLowerCase();
+        
+        if (tagName === 'img') {
+            const alt = $(el).attr('alt') ? $(el).attr('alt').trim() : '';
+            const src = $(el).attr('src') ? $(el).attr('src').trim() : '';
+            if (alt) {
+                markdown += `\n[Image: ${alt}]\n`;
+            } else if (src) {
+                const filename = path.basename(src.split('?')[0]);
+                markdown += `\n[Image: ${filename}]\n`;
+            }
+            return;
+        }
+
         const text = $(el).text().trim().replace(/\s+/g, ' ');
         if (!text) return;
         
@@ -257,28 +274,24 @@ function extractCleanMarkdown(html) {
 }
 
 function compileTextExtraction(targetDir, websiteFolder, baseDomainUrl) {
-    const targetDirText = path.join(__dirname, '../', websiteFolder + '_text');
-    
-    // Clean up existing text dir if present
-    if (fs.existsSync(targetDirText)) {
-        fs.rmSync(targetDirText, { recursive: true, force: true });
-    }
-    fs.mkdirSync(targetDirText, { recursive: true });
-    fs.mkdirSync(path.join(targetDirText, 'pages'), { recursive: true });
-    
     const htmlFiles = getHtmlFiles(targetDir);
     if (htmlFiles.length === 0) {
         throw new Error("No HTML pages found to extract text from.");
     }
     
-    let masterContent = `# Structured Text Extraction from ${baseDomainUrl}\n\n`;
-    masterContent += `*Extracted on: ${new Date().toUTCString()}*\n`;
-    masterContent += `*Total pages extracted: ${htmlFiles.length}*\n\n---\n`;
+    let content = `================================================================================\n`;
+    content += `WEBSITE TEXT EXTRACTION & BUSINESS PROFILE\n`;
+    content += `Target Website: ${baseDomainUrl}\n`;
+    content += `Extracted on: ${new Date().toUTCString()}\n`;
+    content += `Total Pages Extracted: ${htmlFiles.length}\n`;
+    content += `================================================================================\n\n`;
     
-    let toc = `## Table of Contents\n\n`;
-    let pagesContent = '';
+    content += `--------------------------------------------------------------------------------\n`;
+    content += `TABLE OF CONTENTS\n`;
+    content += `--------------------------------------------------------------------------------\n`;
     
-    const extractedPages = [];
+    const pages = [];
+    let pageIndex = 1;
     
     for (const filePath of htmlFiles) {
         const relativePath = path.relative(targetDir, filePath);
@@ -291,48 +304,42 @@ function compileTextExtraction(targetDir, websiteFolder, baseDomainUrl) {
         const html = fs.readFileSync(filePath, 'utf8');
         const $ = cheerio.load(html);
         const pageTitle = $('title').text().trim() || pageRoute;
+        const pageTextContent = extractCleanMarkdown(html);
         
-        const cleanContent = extractCleanMarkdown(html);
-        
-        const cleanFilename = pageRoute === '/' ? 'home' : pageRoute.replace(/^\//, '').replace(/[^a-zA-Z0-9-_]/g, '_').toLowerCase();
-        const mdFilename = `${cleanFilename}.md`;
-        
-        const pageMarkdown = `# Page: ${pageTitle}\nURL: ${baseDomainUrl}${pageRoute}\nRoute: \`${pageRoute}\`\n\n---\n\n${cleanContent}`;
-        
-        // Write individual page md
-        fs.writeFileSync(path.join(targetDirText, 'pages', mdFilename), pageMarkdown, 'utf8');
-        
-        extractedPages.push({
+        pages.push({
+            index: pageIndex++,
             route: pageRoute,
             title: pageTitle,
-            filename: mdFilename
+            text: pageTextContent
         });
         
-        // Append to TOC and master content
-        const anchor = pageTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-        toc += `- [${pageTitle} (Route: ${pageRoute})](#${anchor})\n`;
-        
-        pagesContent += `\n<a name="${anchor}"></a>\n\n${pageMarkdown}\n\n---\n`;
+        content += `${pages.length}. Route: ${pageRoute} (Title: ${pageTitle})\n`;
     }
     
-    // Assemble master readme
-    let readme = `# Extracted Website Text Content: ${baseDomainUrl}\n\n`;
-    readme += `This directory contains the structured text extracted from **${baseDomainUrl}**.\n\n`;
-    readme += `## Files\n`;
-    readme += `- \`README.md\`: This file.\n`;
-    readme += `- \`full_site_content.md\`: A single consolidated Markdown file containing text from all pages.\n`;
-    readme += `- \`pages/\`: A folder containing separate Markdown files for each individual page.\n\n`;
-    readme += `## Extracted Pages (${htmlFiles.length})\n\n`;
-    for (const page of extractedPages) {
-        readme += `- **${page.title}** (Route: \`${page.route}\`) -> [\`pages/${page.filename}\`](pages/${page.filename})\n`;
+    content += `\n================================================================================\n`;
+    content += `PAGE CONTENT\n`;
+    content += `================================================================================\n\n`;
+    
+    for (const page of pages) {
+        content += `--------------------------------------------------------------------------------\n`;
+        content += `${page.index}. PAGE: ${page.title}\n`;
+        content += `   Route: ${page.route}\n`;
+        content += `   URL: ${baseDomainUrl.replace(/\/$/, '')}${page.route}\n`;
+        content += `--------------------------------------------------------------------------------\n\n`;
+        content += page.text ? page.text : `(No text content found on this page.)`;
+        content += `\n\n`;
     }
     
-    fs.writeFileSync(path.join(targetDirText, 'README.md'), readme, 'utf8');
-    fs.writeFileSync(path.join(targetDirText, 'full_site_content.md'), masterContent + '\n' + toc + '\n' + pagesContent, 'utf8');
+    const outputDir = path.join(__dirname, '../public/sites');
+    if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+    }
     
-    // Clean up HTML directory and swap
+    const txtPath = path.join(outputDir, `${websiteFolder}.txt`);
+    fs.writeFileSync(txtPath, content, 'utf8');
+    
+    // Clean up HTML directory
     fs.rmSync(targetDir, { recursive: true, force: true });
-    fs.renameSync(targetDirText, targetDir);
 }
 
 
