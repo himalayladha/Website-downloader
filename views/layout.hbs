@@ -70,6 +70,12 @@
         
         if (downloadWebsite) {
           downloadWebsite.style.display = 'inline-flex';
+          const outputFormatVal = outputFormatSelect ? outputFormatSelect.value : 'zip';
+          if (outputFormatVal === 'text') {
+            downloadWebsite.innerHTML = '<i class="fa-solid fa-file-lines"></i> Download Extracted Text (ZIP)';
+          } else {
+            downloadWebsite.innerHTML = '<i class="fa-solid fa-file-zipper"></i> Download ZIP Archive';
+          }
           downloadWebsite.onclick = function() {
             window.location = '/sites/' + event.file + ".zip";
           };
@@ -107,7 +113,9 @@
             progressPercent.innerText = pct + "%";
           }
           if (progressStatus) {
-            progressStatus.innerText = `Downloading assets (${numberOfFiles} files saved)...`;
+            const outputFormatVal = outputFormatSelect ? outputFormatSelect.value : 'zip';
+            const unit = outputFormatVal === 'text' ? 'pages' : 'files';
+            progressStatus.innerText = `Downloading (${numberOfFiles} ${unit} saved)...`;
           }
         }
 
@@ -116,6 +124,7 @@
     });
 
     const scrapeModeSelect = document.getElementById('scrapeMode');
+    const outputFormatSelect = document.getElementById('outputFormat');
     const depthGroup = document.getElementById('depthGroup');
     const maxDepthSelect = document.getElementById('maxDepth');
 
@@ -137,9 +146,15 @@
           return;
         }
 
+        const outputFormat = outputFormatSelect ? outputFormatSelect.value : 'zip';
+
         numberOfFiles = 0;
         if (nFilesCount) nFilesCount.innerText = '0';
-        if (nFilesContainer) nFilesContainer.style.display = 'inline-flex';
+        if (nFilesContainer) {
+          nFilesContainer.innerHTML = `${outputFormat === 'text' ? 'Downloaded Pages: ' : 'Downloaded Assets: '}<span id="nFiles" class="counter-number">0</span>`;
+          nFilesCount = document.getElementById('nFiles');
+          nFilesContainer.style.display = 'inline-flex';
+        }
         if (logConsole) logConsole.innerHTML = '';
         if (downloadWebsite) downloadWebsite.style.display = 'none';
 
@@ -175,12 +190,13 @@
         const depthVal = maxDepthSelect ? maxDepthSelect.value : 'unlimited';
         const maxRecursiveDepth = depthVal === 'unlimited' ? null : parseInt(depthVal, 10);
 
-        appendLog("Info", `Downloading ${website} (${recursive ? (maxRecursiveDepth ? `recursive up to ${maxRecursiveDepth} layers` : 'recursive unlimited') : 'single page'})...`);
+        appendLog("Info", `Downloading ${website} (${recursive ? (maxRecursiveDepth ? `recursive up to ${maxRecursiveDepth} layers` : 'recursive unlimited') : 'single page'}) [Format: ${outputFormat}]...`);
         socket.emit('request', { 
           token: localStorage['token'], 
           website,
           recursive,
-          maxRecursiveDepth
+          maxRecursiveDepth,
+          outputFormat
         });
       };
     }

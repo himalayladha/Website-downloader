@@ -44,10 +44,17 @@
         <label for="scrapeMode" class="setting-label">Download Mode</label>
         <select id="scrapeMode" class="setting-select">
           <option value="single">Single Page</option>
-          <option value="all">All Linked Pages (Recursive)</option>
+          <option value="all" selected>All Linked Pages (Recursive)</option>
         </select>
       </div>
-      <div id="depthGroup" class="setting-group" style="display: none;">
+      <div class="setting-group">
+        <label for="outputFormat" class="setting-label">Output Format</label>
+        <select id="outputFormat" class="setting-select">
+          <option value="zip" selected>ZIP Archive (Full Assets)</option>
+          <option value="text">Structured Text (Markdown)</option>
+        </select>
+      </div>
+      <div id="depthGroup" class="setting-group">
         <label for="maxDepth" class="setting-label">Max Recursive Depth</label>
         <select id="maxDepth" class="setting-select">
           <option value="unlimited" selected>Unlimited (All Pages)</option>
