@@ -66,18 +66,21 @@
           statusBadge.className = 'status-badge status-complete';
         }
         
-        appendLog("Success", `Zip archive ready (${event.file}.zip)`);
+        const outputFormatVal = outputFormatSelect ? outputFormatSelect.value : 'zip';
+        const fileExt = outputFormatVal === 'text' ? '.txt' : '.zip';
+        const fileDesc = outputFormatVal === 'text' ? 'Text file' : 'Zip archive';
+        
+        appendLog("Success", `${fileDesc} ready (${event.file}${fileExt})`);
         
         if (downloadWebsite) {
           downloadWebsite.style.display = 'inline-flex';
-          const outputFormatVal = outputFormatSelect ? outputFormatSelect.value : 'zip';
           if (outputFormatVal === 'text') {
-            downloadWebsite.innerHTML = '<i class="fa-solid fa-file-lines"></i> Download Extracted Text (ZIP)';
+            downloadWebsite.innerHTML = '<i class="fa-solid fa-file-lines"></i> Download Extracted Text (.txt)';
           } else {
             downloadWebsite.innerHTML = '<i class="fa-solid fa-file-zipper"></i> Download ZIP Archive';
           }
           downloadWebsite.onclick = function() {
-            window.location = '/sites/' + event.file + ".zip";
+            window.location = '/sites/' + event.file + fileExt;
           };
         }
 
