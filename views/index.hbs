@@ -22,18 +22,9 @@
   </div>
 
   <div class="main-card">
-    <div class="tabs-container">
-      <button type="button" id="tabWebsite" class="tab-button active">
-        <i class="fa-solid fa-globe"></i> Website Assets
-      </button>
-      <button type="button" id="tabShopify" class="tab-button">
-        <i class="fa-brands fa-shopify"></i> Shopify Theme
-      </button>
-    </div>
-
     <div class="input-form">
       <div class="input-wrapper">
-        <i id="urlIcon" class="fa-solid fa-globe input-icon"></i>
+        <i class="fa-solid fa-globe input-icon"></i>
         <input 
           type="text" 
           id="website" 
@@ -48,7 +39,7 @@
       </button>
     </div>
 
-    <div id="websiteSettings" class="settings-panel">
+    <div class="settings-panel">
       <div class="settings-column settings-main">
         <div class="setting-group">
           <label for="scrapeMode" class="setting-label">Download Mode</label>
@@ -90,57 +81,6 @@
       </div>
     </div>
 
-    <div id="shopifySettings" class="settings-panel" style="display: none;">
-      <div class="settings-column settings-main">
-        <div class="setting-group">
-          <label for="shopifyApi" class="setting-label">API Access Token / API Key:Password</label>
-          <input 
-            type="password" 
-            id="shopifyApi" 
-            class="setting-select" 
-            placeholder="e.g. shpat_... or APIKey:Password"
-            autocomplete="off"
-          />
-        </div>
-      </div>
-      <div class="settings-column settings-advanced">
-        <div class="setting-group">
-          <label for="shopifyTheme" class="setting-label">Shopify Theme ID</label>
-          <input 
-            type="text" 
-            id="shopifyTheme" 
-            class="setting-select" 
-            placeholder="e.g. 123456789012"
-            autocomplete="off"
-          />
-        </div>
-      </div>
-      <div class="setting-row" style="grid-column: span 2; display: flex; width: 100%; margin-top: 16px; border-top: 1px dashed var(--border-color); padding-top: 16px;">
-        <div style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; width: 100%;">
-          <strong style="color: var(--text-main); font-size: 0.85rem; display: block; margin-bottom: 8px;">How to locate these credentials:</strong>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-            <div>
-              <strong style="color: var(--text-main);">1. API Access Token (shpat_...)</strong>
-              <ol style="padding-left: 16px; margin-top: 4px; display: flex; flex-direction: column; gap: 4px;">
-                <li>In Shopify Admin, navigate to <strong>Settings > Apps and sales channels > Develop apps</strong>.</li>
-                <li>Click <strong>Create an app</strong>, name it, and save.</li>
-                <li>Under <strong>Configuration</strong>, edit Admin API integration scopes and check <code>read_themes</code> / <code>write_themes</code>.</li>
-                <li>Click <strong>Install App</strong> and copy your token from the API Credentials tab.</li>
-              </ol>
-            </div>
-            <div>
-              <strong style="color: var(--text-main);">2. Shopify Theme ID</strong>
-              <ol style="padding-left: 16px; margin-top: 4px; display: flex; flex-direction: column; gap: 4px;">
-                <li>In Shopify Admin, go to <strong>Online Store > Themes</strong>.</li>
-                <li>Click the <strong>Customize</strong> button on the theme you want to download.</li>
-                <li>Inspect your browser's URL address bar.</li>
-                <li>The numeric value at the end of the route is your Theme ID (e.g., <code>/themes/<b>123456789012</b></code>).</li>
-              </ol>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <div class="dashboard-status">
       <div id="statusBadge" class="status-badge" style="display: none;">

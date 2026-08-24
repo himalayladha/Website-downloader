@@ -67,16 +67,14 @@
         }
         
         const outputFormatVal = outputFormatSelect ? outputFormatSelect.value : 'zip';
-        const fileExt = currentDownloaderType === 'shopify' ? '.zip' : (outputFormatVal === 'text' ? '.txt' : '.zip');
-        const fileDesc = currentDownloaderType === 'shopify' ? 'Shopify theme zip' : (outputFormatVal === 'text' ? 'Text file' : 'Zip archive');
+        const fileExt = outputFormatVal === 'text' ? '.txt' : '.zip';
+        const fileDesc = outputFormatVal === 'text' ? 'Text file' : 'Zip archive';
         
         appendLog("Success", `${fileDesc} ready (${event.file}${fileExt})`);
         
         if (downloadWebsite) {
           downloadWebsite.style.display = 'inline-flex';
-          if (currentDownloaderType === 'shopify') {
-            downloadWebsite.innerHTML = '<i class="fa-solid fa-file-zipper"></i> Download Shopify Theme ZIP';
-          } else if (outputFormatVal === 'text') {
+          if (outputFormatVal === 'text') {
             downloadWebsite.innerHTML = '<i class="fa-solid fa-file-lines"></i> Download Extracted Text (.txt)';
           } else {
             downloadWebsite.innerHTML = '<i class="fa-solid fa-file-zipper"></i> Download ZIP Archive';
@@ -119,7 +117,7 @@
           }
           if (progressStatus) {
             const outputFormatVal = outputFormatSelect ? outputFormatSelect.value : 'zip';
-            const unit = currentDownloaderType === 'shopify' ? 'assets' : (outputFormatVal === 'text' ? 'pages' : 'files');
+            const unit = outputFormatVal === 'text' ? 'pages' : 'files';
             progressStatus.innerText = `Downloading (${numberOfFiles} ${unit} saved)...`;
           }
         }
@@ -133,40 +131,6 @@
     const requestCookiesInput = document.getElementById('requestCookies');
     const depthGroup = document.getElementById('depthGroup');
     const maxDepthSelect = document.getElementById('maxDepth');
-
-    const tabWebsite = document.getElementById('tabWebsite');
-    const tabShopify = document.getElementById('tabShopify');
-    const websiteSettings = document.getElementById('websiteSettings');
-    const shopifySettings = document.getElementById('shopifySettings');
-    const urlIcon = document.getElementById('urlIcon');
-
-    let currentDownloaderType = 'website';
-
-    if (tabWebsite && tabShopify) {
-      tabWebsite.onclick = () => {
-        tabWebsite.classList.add('active');
-        tabShopify.classList.remove('active');
-        if (websiteSettings) websiteSettings.style.display = 'grid';
-        if (shopifySettings) shopifySettings.style.display = 'none';
-        websiteInput.placeholder = 'https://example.com';
-        if (urlIcon) {
-          urlIcon.className = 'fa-solid fa-globe input-icon';
-        }
-        currentDownloaderType = 'website';
-      };
-
-      tabShopify.onclick = () => {
-        tabShopify.classList.add('active');
-        tabWebsite.classList.remove('active');
-        if (websiteSettings) websiteSettings.style.display = 'none';
-        if (shopifySettings) shopifySettings.style.display = 'grid';
-        websiteInput.placeholder = 'e.g. store-name.myshopify.com';
-        if (urlIcon) {
-          urlIcon.className = 'fa-brands fa-shopify input-icon';
-        }
-        currentDownloaderType = 'shopify';
-      };
-    }
 
     if (scrapeModeSelect) {
       scrapeModeSelect.onchange = () => {
@@ -186,43 +150,16 @@
           return;
         }
 
-        let outputFormat = 'zip';
-        let cookies = '';
-        let apiCredentials = '';
-        let themeId = '';
-        let recursive = false;
-        let maxRecursiveDepth = null;
-
-        if (currentDownloaderType === 'shopify') {
-          const shopifyApiInput = document.getElementById('shopifyApi');
-          const shopifyThemeInput = document.getElementById('shopifyTheme');
-          apiCredentials = shopifyApiInput ? shopifyApiInput.value.trim() : '';
-          themeId = shopifyThemeInput ? shopifyThemeInput.value.trim() : '';
-
-          if (!apiCredentials) {
-            shopifyApiInput.focus();
-            return;
-          }
-          if (!themeId) {
-            shopifyThemeInput.focus();
-            return;
-          }
-        } else {
-          outputFormat = outputFormatSelect ? outputFormatSelect.value : 'zip';
-          cookies = requestCookiesInput ? requestCookiesInput.value.trim() : '';
-          recursive = scrapeModeSelect ? (scrapeModeSelect.value === 'all') : false;
-          const depthVal = maxDepthSelect ? maxDepthSelect.value : 'unlimited';
-          maxRecursiveDepth = depthVal === 'unlimited' ? null : parseInt(depthVal, 10);
-        }
+        const outputFormat = outputFormatSelect ? outputFormatSelect.value : 'zip';
+        const cookies = requestCookiesInput ? requestCookiesInput.value.trim() : '';
+        const recursive = scrapeModeSelect ? (scrapeModeSelect.value === 'all') : false;
+        const depthVal = maxDepthSelect ? maxDepthSelect.value : 'unlimited';
+        const maxRecursiveDepth = depthVal === 'unlimited' ? null : parseInt(depthVal, 10);
 
         numberOfFiles = 0;
         if (nFilesCount) nFilesCount.innerText = '0';
         if (nFilesContainer) {
-          if (currentDownloaderType === 'shopify') {
-            nFilesContainer.innerHTML = `Downloaded Theme Assets: <span id="nFiles" class="counter-number">0</span>`;
-          } else {
-            nFilesContainer.innerHTML = `${outputFormat === 'text' ? 'Downloaded Pages: ' : 'Downloaded Assets: '}<span id="nFiles" class="counter-number">0</span>`;
-          }
+          nFilesContainer.innerHTML = `${outputFormat === 'text' ? 'Downloaded Pages: ' : 'Downloaded Assets: '}<span id="nFiles" class="counter-number">0</span>`;
           nFilesCount = document.getElementById('nFiles');
           nFilesContainer.style.display = 'inline-flex';
         }
@@ -257,11 +194,7 @@
         downloadBtn.disabled = true;
         downloadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
 
-        if (currentDownloaderType === 'shopify') {
-          appendLog("Info", `Downloading Shopify Theme ID ${themeId} from ${website}...`);
-        } else {
-          appendLog("Info", `Downloading ${website} (${recursive ? (maxRecursiveDepth ? `recursive up to ${maxRecursiveDepth} layers` : 'recursive unlimited') : 'single page'}) [Format: ${outputFormat}]...`);
-        }
+        appendLog("Info", `Downloading ${website} (${recursive ? (maxRecursiveDepth ? `recursive up to ${maxRecursiveDepth} layers` : 'recursive unlimited') : 'single page'}) [Format: ${outputFormat}]...`);
 
         socket.emit('request', { 
           token: localStorage['token'], 
@@ -269,10 +202,7 @@
           recursive,
           maxRecursiveDepth,
           outputFormat,
-          cookies,
-          downloaderType: currentDownloaderType,
-          apiCredentials,
-          themeId
+          cookies
         });
       };
     }
