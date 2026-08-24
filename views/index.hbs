@@ -40,30 +40,45 @@
     </div>
 
     <div class="settings-panel">
-      <div class="setting-group">
-        <label for="scrapeMode" class="setting-label">Download Mode</label>
-        <select id="scrapeMode" class="setting-select">
-          <option value="single">Single Page</option>
-          <option value="all" selected>All Linked Pages (Recursive)</option>
-        </select>
+      <div class="setting-row" style="display: flex; gap: 24px; width: 100%;">
+        <div class="setting-group" style="flex: 1;">
+          <label for="scrapeMode" class="setting-label">Download Mode</label>
+          <select id="scrapeMode" class="setting-select">
+            <option value="single">Single Page</option>
+            <option value="all" selected>All Linked Pages (Recursive)</option>
+          </select>
+        </div>
+        <div class="setting-group" style="flex: 1;">
+          <label for="outputFormat" class="setting-label">Output Format</label>
+          <select id="outputFormat" class="setting-select">
+            <option value="zip" selected>ZIP Archive (Full Assets)</option>
+            <option value="text">Structured Text (Markdown)</option>
+          </select>
+        </div>
+        <div id="depthGroup" class="setting-group" style="flex: 1;">
+          <label for="maxDepth" class="setting-label">Max Recursive Depth</label>
+          <select id="maxDepth" class="setting-select">
+            <option value="unlimited" selected>Unlimited (All Pages)</option>
+            <option value="1">1 page deep</option>
+            <option value="2">2 pages deep</option>
+            <option value="3">3 pages deep</option>
+            <option value="4">4 pages deep</option>
+            <option value="5">5 pages deep</option>
+          </select>
+        </div>
       </div>
-      <div class="setting-group">
-        <label for="outputFormat" class="setting-label">Output Format</label>
-        <select id="outputFormat" class="setting-select">
-          <option value="zip" selected>ZIP Archive (Full Assets)</option>
-          <option value="text">Structured Text (Markdown)</option>
-        </select>
-      </div>
-      <div id="depthGroup" class="setting-group">
-        <label for="maxDepth" class="setting-label">Max Recursive Depth</label>
-        <select id="maxDepth" class="setting-select">
-          <option value="unlimited" selected>Unlimited (All Pages)</option>
-          <option value="1">1 page deep</option>
-          <option value="2">2 pages deep</option>
-          <option value="3">3 pages deep</option>
-          <option value="4">4 pages deep</option>
-          <option value="5">5 pages deep</option>
-        </select>
+      <div class="setting-row" style="display: flex; width: 100%; margin-top: 12px;">
+        <div class="setting-group" style="width: 100%;">
+          <label for="requestCookies" class="setting-label">Request Cookies (For password-protected or authenticated sites)</label>
+          <input 
+            type="text" 
+            id="requestCookies" 
+            class="setting-select" 
+            placeholder="e.g. storefront_digest=4a3b2c...; session=xyz"
+            style="width: 100%;"
+            autocomplete="off"
+          />
+        </div>
       </div>
     </div>
 

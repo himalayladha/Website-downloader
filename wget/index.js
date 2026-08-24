@@ -135,9 +135,15 @@ module.exports = async (io, data) => {
             maxRecursiveDepth: recursive ? maxRecursiveDepth : null,
             urlFilter: urlFilter,
             request: {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-                }
+                headers: (() => {
+                    const headers = {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                    };
+                    if (data.cookies) {
+                        headers['Cookie'] = data.cookies;
+                    }
+                    return headers;
+                })()
             },
             plugins: [new ProgressPlugin()]
         });
