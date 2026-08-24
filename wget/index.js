@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const cheerio = require('cheerio');
+const got = require('got');
 const archiver = require('../archiver');
 
 
@@ -24,6 +25,58 @@ module.exports = async (io, data) => {
             fs.rmSync(targetDir, { recursive: true, force: true });
         } catch (e) {
             console.error("Error cleaning existing dir:", e);
+        }
+    }
+
+    // Setup request headers (using browser emulation)
+    const preflightHeaders = {
+        'User-Agent': data.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9'
+    };
+    if (data.cookies) {
+        let rawCookies = data.cookies.trim();
+        if (rawCookies.toLowerCase().startsWith('cookie:')) {
+            rawCookies = rawCookies.slice(7).trim();
+        }
+        preflightHeaders['Cookie'] = rawCookies;
+    }
+
+    try {
+        io.emit(data.token, { progress: "Info Performing smart pre-flight check on destination URL..." });
+        const response = await got(websiteUrl, {
+            headers: preflightHeaders,
+            timeout: 8000,
+            retry: 0,
+            followRedirect: true
+        });
+
+        // Smart Analysis of the target HTML page
+        const html = response.body || "";
+        const isShopify = html.includes('myshopify.com') || html.includes('Shopify.shop') || response.headers['x-shopify-stage'] !== undefined;
+        const isPasswordPage = html.includes('action="/password"') || html.includes('name="password"') || html.includes('storefront_digest') || response.url.includes('/password');
+
+        if (isShopify) {
+            io.emit(data.token, { progress: "Info Detected Shopify platform storefront." });
+            if (isPasswordPage && !data.cookies) {
+                io.emit(data.token, { progress: "System Warning: Shopify password protection detected! If scraping fails, enter your password in the browser and supply the storefront_digest cookie." });
+            }
+        }
+
+        if (response.statusCode >= 400) {
+            io.emit(data.token, { progress: `System Warning: Server returned status code ${response.statusCode}. Site might require login or be protected by Cloudflare.` });
+        }
+    } catch (preflightErr) {
+        console.error("Preflight error:", preflightErr);
+        if (preflightErr.response) {
+            const status = preflightErr.response.statusCode;
+            if (status === 403 || status === 401) {
+                io.emit(data.token, { progress: `System Warning: Access Denied (${status}). Please supply valid session cookies in Request Cookies settings to bypass.` });
+            } else {
+                io.emit(data.token, { progress: `Info Pre-flight warning: Server returned status ${status}.` });
+            }
+        } else {
+            io.emit(data.token, { progress: `Info Pre-flight lookup bypassed: ${preflightErr.message}.` });
         }
     }
 
@@ -112,6 +165,20 @@ module.exports = async (io, data) => {
             if (hasDirectoryLoop(urlStr)) {
                 return false;
             }
+
+            // Anti-bloat & tracking filter: ignore common ads, analytics, and trackers
+            const bloatPatterns = [
+                'google-analytics.com', 'googletagmanager.com', 'facebook.net',
+                'doubleclick.net', 'hotjar.com', 'analytics.js', 'gtag/js',
+                'connect.facebook.net', 'snapchat.com', 'pinterest.com',
+                'tiktok.com', 'klaviyo.com', 'pixel', 'browser-sync',
+                'quantserve.com', 'scorecardresearch.com', 'crazyegg.com'
+            ];
+            const lowerUrl = urlStr.toLowerCase();
+            if (bloatPatterns.some(pattern => lowerUrl.includes(pattern))) {
+                return false;
+            }
+
             if (data.outputFormat === 'text') {
                 // If it's a text extraction, only follow same-domain HTML pages
                 return isSameDomain(urlStr) && isHtmlPage(urlStr);
