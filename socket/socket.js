@@ -5,6 +5,7 @@ module.exports = (io) => {
   io.on('connection', function (socket) {
     socket.on('request', function (data) {
       console.log("Request connection received %s", data.token);
+      data.userAgent = socket.handshake.headers['user-agent'];
       wget(io, data);
     });
 
