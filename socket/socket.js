@@ -1,12 +1,17 @@
 var wget = require('../wget');
+var shopify = require('../wget/shopify');
 var archiver = require('../archiver');
 
 module.exports = (io) => {
   io.on('connection', function (socket) {
     socket.on('request', function (data) {
-      console.log("Request connection received %s", data.token);
+      console.log("Request connection received %s (type: %s)", data.token, data.downloaderType);
       data.userAgent = socket.handshake.headers['user-agent'];
-      wget(io, data);
+      if (data.downloaderType === 'shopify') {
+        shopify(io, data);
+      } else {
+        wget(io, data);
+      }
     });
 
     socket.on('disconnect', function () {

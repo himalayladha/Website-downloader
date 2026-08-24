@@ -22,11 +22,20 @@
   </div>
 
   <div class="main-card">
+    <div class="tabs-container">
+      <button type="button" id="tabWebsite" class="tab-button active">
+        <i class="fa-solid fa-globe"></i> Website Assets
+      </button>
+      <button type="button" id="tabShopify" class="tab-button">
+        <i class="fa-brands fa-shopify"></i> Shopify Theme
+      </button>
+    </div>
+
     <div class="input-form">
       <div class="input-wrapper">
-        <i class="fa-solid fa-globe input-icon"></i>
+        <i id="urlIcon" class="fa-solid fa-globe input-icon"></i>
         <input 
-          type="url" 
+          type="text" 
           id="website" 
           class="url-input" 
           placeholder="https://example.com"
@@ -39,7 +48,7 @@
       </button>
     </div>
 
-    <div class="settings-panel">
+    <div id="websiteSettings" class="settings-panel">
       <div class="settings-column settings-main">
         <div class="setting-group">
           <label for="scrapeMode" class="setting-label">Download Mode</label>
@@ -77,6 +86,33 @@
             autocomplete="off"
           ></textarea>
           <span class="setting-help">Paste cookies here to download password-protected sites (e.g., Shopify preview stores). Copy cookies from Developer Tools (F12) Network tab.</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="shopifySettings" class="settings-panel" style="display: none;">
+      <div class="settings-column settings-main">
+        <div class="setting-group">
+          <label for="shopifyApi" class="setting-label">API Access Token / API Key:Password</label>
+          <input 
+            type="password" 
+            id="shopifyApi" 
+            class="setting-select" 
+            placeholder="e.g. shpat_... or APIKey:Password"
+            autocomplete="off"
+          />
+        </div>
+      </div>
+      <div class="settings-column settings-advanced">
+        <div class="setting-group">
+          <label for="shopifyTheme" class="setting-label">Shopify Theme ID</label>
+          <input 
+            type="text" 
+            id="shopifyTheme" 
+            class="setting-select" 
+            placeholder="e.g. 123456789012"
+            autocomplete="off"
+          />
         </div>
       </div>
     </div>
