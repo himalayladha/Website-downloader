@@ -15,7 +15,7 @@ module.exports = async (io, data) => {
 
     // Parse urls (newline or comma separated)
     const urls = websiteInput
-        .split(/[\n,]/)
+        .split(/[\r\n,;\t]+/)
         .map(url => url.trim())
         .filter(url => url.length > 0)
         .map(url => {
