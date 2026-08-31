@@ -2,6 +2,32 @@
 title Website Downloader Control Panel
 setlocal enabledelayedexpansion
 
+:: Validate Node.js is installed on startup
+where node >nul 2>&1
+if %errorlevel% neq 0 (
+    echo ===================================================
+    echo [ERROR] Node.js is not installed!
+    echo Please install Node.js from https://nodejs.org/ first.
+    echo ===================================================
+    pause
+    exit /b
+)
+
+:: Check if node_modules exists, install if missing before starting the panel
+if not exist "node_modules\" (
+    echo ===================================================
+    echo [INFO] Dependencies not found. Installing...
+    echo ===================================================
+    call npm install
+    if !errorlevel! neq 0 (
+        echo [ERROR] Dependency installation failed!
+        pause
+        exit /b
+    )
+    echo [INFO] Dependencies installed successfully.
+    timeout /t 2 >nul
+)
+
 :menu
 cls
 echo ===================================================
@@ -43,21 +69,6 @@ if %errorlevel% equ 0 (
     start "" "http://localhost:3000"
     timeout /t 2 >nul
     goto menu
-)
-
-:: Validate Node.js is installed
-where node >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [ERROR] Node.js is not installed!
-    echo Please install Node.js from https://nodejs.org/ first.
-    pause
-    goto menu
-)
-
-:: Check if node_modules exists, install if missing
-if not exist "node_modules\" (
-    echo [INFO] Dependencies not found. Installing...
-    call npm install
 )
 
 echo [INFO] Starting server in background...
