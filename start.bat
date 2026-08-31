@@ -28,12 +28,12 @@ if not exist "node_modules\" (
     )
 )
 
-:: Open the browser
+:: Start a background process that waits 3 seconds for the server to boot, then opens localhost
 echo [INFO] Starting application server...
-echo [INFO] Opening http://localhost:3000 in your browser...
-start "" "http://localhost:3000"
+echo [INFO] Opening http://localhost:3000 in your browser shortly...
+start /b cmd /c "timeout /t 3 /nobreak >nul && start http://localhost:3000"
 
-:: Run the server
+:: Run the server (this is blocking)
 call npm start
 if %errorlevel% neq 0 (
     echo.
