@@ -160,7 +160,8 @@ html, body {
   font-family: var(--font-sans);
   transition: border-color 0.25s, box-shadow 0.25s;
   resize: vertical;
-  min-height: 50px;
+  height: 75px;
+  min-height: 75px;
   line-height: 1.4;
 }
 
