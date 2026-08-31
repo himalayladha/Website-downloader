@@ -9,6 +9,14 @@ module.exports = (io) => {
       wget(io, data);
     });
 
+    socket.on('cancel', function (data) {
+      if (data.token) {
+        global.cancelFlags = global.cancelFlags || {};
+        global.cancelFlags[data.token] = true;
+        console.log("Cancellation request received for token %s", data.token);
+      }
+    });
+
     socket.on('disconnect', function () {
       console.log("User disconnected");
       // Stop the wget process and remove partially downloaded files

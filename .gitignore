@@ -1,33 +1,32 @@
-# Logs
-logs
-*.log
-npm-debug.log*
+# Ignore everything by default
+*
 
-# Dependency directory
-node_modules/
+# Allow files in root
+!app.js
+!app.json
+!package.json
+!package-lock.json
+!start.bat
+!README.md
+!LICENSE.md
+!.gitignore
 
-# Ignore all root level entries by default
-/*
+# Allow core folders (and everything recursively inside them)
+!bin/
+!bin/**
+!public/
+!public/**
+!routes/
+!routes/**
+!socket/
+!socket/**
+!views/
+!views/**
+!wget/
+!wget/**
+!archiver/
+!archiver/**
 
-# Whitelist standard source directories
-!/archiver/
-!/bin/
-!/public/
-!/routes/
-!/socket/
-!/views/
-!/wget/
-!/.github/
-
-# Whitelist standard source/config files
-!/.gitignore
-!/LICENSE.md
-!/README.md
-!/app.js
-!/app.json
-!/package.json
-!/package-lock.json
-!/start.bat
-
-# Ignore generated zips in public sites
-/public/sites/*.zip
+# Ignore downloads inside public/sites
+public/sites/*
+!public/sites/.gitkeep

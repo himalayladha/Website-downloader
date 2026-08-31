@@ -65,6 +65,30 @@
           <option value="5">5 pages deep</option>
         </select>
       </div>
+      <div class="setting-group" style="grid-column: span 2;">
+        <label for="extraDomains" class="setting-label">Allowed Extra Domains (Subdomains)</label>
+        <input 
+          type="text" 
+          id="extraDomains" 
+          class="setting-input" 
+          placeholder="e.g. shop.example.com, blog.example.com"
+          autocomplete="off"
+        />
+      </div>
+      <div class="setting-group">
+        <label class="setting-label">Exclusions</label>
+        <div class="checkbox-row" style="display: flex; gap: 16px; margin-top: 6px;">
+          <label class="checkbox-label" style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer; color: var(--text-main); font-weight: 500;">
+            <input type="checkbox" id="excludeImages" /> Images
+          </label>
+          <label class="checkbox-label" style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer; color: var(--text-main); font-weight: 500;">
+            <input type="checkbox" id="excludeVideos" /> Videos
+          </label>
+          <label class="checkbox-label" style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer; color: var(--text-main); font-weight: 500;">
+            <input type="checkbox" id="excludePdfs" /> PDFs
+          </label>
+        </div>
+      </div>
     </div>
 
 
@@ -78,8 +102,13 @@
     </div>
 
     <div id="progressWrapper" class="progress-wrapper" style="display: none;">
-      <div class="progress-info">
-        <span id="progressStatus" class="progress-status">Downloading assets...</span>
+      <div class="progress-info" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span id="progressStatus" class="progress-status">Downloading assets...</span>
+          <button id="stopBtn" class="btn-stop" style="display: none;" title="Stop crawling early and package downloaded files">
+            <i class="fa-solid fa-circle-stop"></i> Stop & Package
+          </button>
+        </div>
         <span id="progressPercent" class="progress-percentage">0%</span>
       </div>
       <div class="progress-track">

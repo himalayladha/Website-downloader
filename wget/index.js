@@ -5,8 +5,19 @@ const gotModule = require('got');
 const got = typeof gotModule === 'function' ? gotModule : (gotModule.got || gotModule.default || gotModule);
 const archiver = require('../archiver');
 
+class CancelError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = 'CancelError';
+    }
+}
 
 module.exports = async (io, data) => {
+    // Reset cancellation flag for this request token
+    if (global.cancelFlags && data.token) {
+        delete global.cancelFlags[data.token];
+    }
+
     let websiteInput = data.website ? data.website.trim() : "";
     if (!websiteInput) {
         io.emit(data.token, { progress: "Invalid URL(s) provided." });
@@ -123,7 +134,12 @@ async function downloadSingleWebsite(websiteUrl, io, data) {
         const maxRecursiveDepth = (data.maxRecursiveDepth !== undefined && data.maxRecursiveDepth !== null) ? parseInt(data.maxRecursiveDepth, 10) : null;
 
         const parsedBaseUrl = new URL(websiteUrl);
-        const baseHostname = parsedBaseUrl.hostname.replace(/^www\./i, '');
+        const baseHostname = parsedBaseUrl.hostname.replace(/^www\./i, '').toLowerCase();
+
+        // Parse whitelisted domains
+        const extraHosts = data.extraDomains 
+            ? data.extraDomains.split(',').map(h => h.trim().replace(/^www\./i, '').toLowerCase()).filter(Boolean)
+            : [];
 
         // Extract subpath base directory
         let basePath = parsedBaseUrl.pathname;
@@ -137,8 +153,11 @@ async function downloadSingleWebsite(websiteUrl, io, data) {
         const isSameDomain = (urlStr) => {
             try {
                 const parsedUrl = new URL(urlStr);
-                const currentHostname = parsedUrl.hostname.replace(/^www\./i, '');
-                return currentHostname === baseHostname || currentHostname.endsWith('.' + baseHostname);
+                const currentHostname = parsedUrl.hostname.replace(/^www\./i, '').toLowerCase();
+                if (currentHostname === baseHostname || currentHostname.endsWith('.' + baseHostname)) {
+                    return true;
+                }
+                return extraHosts.some(host => currentHostname === host || currentHostname.endsWith('.' + host));
             } catch (e) {
                 return false;
             }
@@ -147,9 +166,14 @@ async function downloadSingleWebsite(websiteUrl, io, data) {
         const isUnderSubpath = (urlStr) => {
             try {
                 const parsedUrl = new URL(urlStr);
-                const currentHostname = parsedUrl.hostname.replace(/^www\./i, '');
+                const currentHostname = parsedUrl.hostname.replace(/^www\./i, '').toLowerCase();
                 
-                // Must be on the same domain
+                // If it is on one of our allowed extra domains, skip primary domain subpath constraint
+                if (extraHosts.some(host => currentHostname === host || currentHostname.endsWith('.' + host))) {
+                    return true;
+                }
+
+                // Must be on the primary domain
                 if (currentHostname !== baseHostname && !currentHostname.endsWith('.' + baseHostname)) {
                     return false;
                 }
@@ -217,6 +241,39 @@ async function downloadSingleWebsite(websiteUrl, io, data) {
             // Block recursive folder loops immediately
             if (hasDirectoryLoop(urlStr)) {
                 return false;
+            }
+
+            // Check cancel flag
+            if (global.cancelFlags && global.cancelFlags[data.token]) {
+                throw new CancelError("Scraping cancelled by user");
+            }
+
+            try {
+                const parsedUrl = new URL(urlStr);
+                const pathname = parsedUrl.pathname.toLowerCase();
+
+                // Exclude Images
+                if (data.excludeImages) {
+                    const imgExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico'];
+                    if (imgExtensions.some(ext => pathname.endsWith(ext)) || urlStr.includes('/wp-content/uploads/') || urlStr.includes('/assets/images/')) {
+                        return false;
+                    }
+                }
+                // Exclude Videos
+                if (data.excludeVideos) {
+                    const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi'];
+                    if (videoExtensions.some(ext => pathname.endsWith(ext))) {
+                        return false;
+                    }
+                }
+                // Exclude PDFs
+                if (data.excludePdfs) {
+                    if (pathname.endsWith('.pdf')) {
+                        return false;
+                    }
+                }
+            } catch (e) {
+                // invalid URL
             }
 
             // Anti-bloat & tracking filter: ignore common ads, analytics, and trackers
@@ -304,6 +361,13 @@ async function downloadSingleWebsite(websiteUrl, io, data) {
             }
         }
 
+        // Run SEO audit
+        try {
+            generateSeoReport(targetDir, websiteFolder, websiteUrl);
+        } catch (seoErr) {
+            console.error("SEO report error:", seoErr);
+        }
+
         // If the format is text, convert the HTML files to structured TXT
         if (data.outputFormat === 'text') {
             io.emit(data.token, { progress: "Structuring extracted text..." });
@@ -316,21 +380,33 @@ async function downloadSingleWebsite(websiteUrl, io, data) {
 
     } catch (err) {
         console.error("Scrape error:", err);
+        const isCancelled = err.name === 'CancelError' || err.message.includes("cancelled");
+        if (isCancelled) {
+            io.emit(data.token, { progress: "System Cancellation request completed. Packaging downloaded files..." });
+        }
+
         if (fs.existsSync(targetDir)) {
+            // Run SEO audit even for incomplete/cancelled downloads
+            try {
+                generateSeoReport(targetDir, websiteFolder, websiteUrl);
+            } catch (seoErr) {
+                console.error("SEO report error:", seoErr);
+            }
+
             if (data.outputFormat === 'text') {
                 try {
                     compileTextExtraction(targetDir, websiteFolder, websiteUrl);
                     io.emit(data.token, { progress: "Completed", file: websiteFolder });
                 } catch (compileErr) {
                     console.error("Failed to compile text after error:", compileErr);
-                    io.emit(data.token, { progress: `Scraping failed: ${err.message}` });
+                    io.emit(data.token, { progress: isCancelled ? "Cancelled" : `Scraping failed: ${err.message}` });
                 }
             } else {
                 io.emit(data.token, { progress: "Converting" });
                 archiver(websiteFolder, io, data);
             }
         } else {
-            io.emit(data.token, { progress: `Scraping failed: ${err.message}` });
+            io.emit(data.token, { progress: isCancelled ? "Cancelled" : `Scraping failed: ${err.message}` });
         }
     }
 }
@@ -373,6 +449,12 @@ async function downloadBulkWebsites(urls, io, data) {
     io.emit(data.token, { progress: `Starting bulk download of ${urls.length} websites...` });
 
     for (let index = 0; index < urls.length; index++) {
+        // Pre-check cancellation flag before starting next site in list
+        if (global.cancelFlags && global.cancelFlags[data.token]) {
+            io.emit(data.token, { progress: "System Cancellation request received. Bypassing remaining sites..." });
+            break;
+        }
+
         const websiteUrl = urls[index];
         const siteIndex = index + 1;
         
@@ -380,8 +462,13 @@ async function downloadBulkWebsites(urls, io, data) {
         
         try {
             const parsedBaseUrl = new URL(websiteUrl);
-            const baseHostname = parsedBaseUrl.hostname.replace(/^www\./i, '');
+            const baseHostname = parsedBaseUrl.hostname.replace(/^www\./i, '').toLowerCase();
             const websiteFolder = getWebsiteFolderName(websiteUrl);
+
+            // Parse whitelisted domains
+            const extraHosts = data.extraDomains 
+                ? data.extraDomains.split(',').map(h => h.trim().replace(/^www\./i, '').toLowerCase()).filter(Boolean)
+                : [];
 
             // In bulk mode, targetDir is a subdirectory inside the bulkSession folder
             const targetDir = path.join(bulkDir, websiteFolder);
@@ -405,8 +492,11 @@ async function downloadBulkWebsites(urls, io, data) {
             const isSameDomain = (urlStr) => {
                 try {
                     const parsedUrl = new URL(urlStr);
-                    const currentHostname = parsedUrl.hostname.replace(/^www\./i, '');
-                    return currentHostname === baseHostname || currentHostname.endsWith('.' + baseHostname);
+                    const currentHostname = parsedUrl.hostname.replace(/^www\./i, '').toLowerCase();
+                    if (currentHostname === baseHostname || currentHostname.endsWith('.' + baseHostname)) {
+                        return true;
+                    }
+                    return extraHosts.some(host => currentHostname === host || currentHostname.endsWith('.' + host));
                 } catch (e) {
                     return false;
                 }
@@ -415,7 +505,13 @@ async function downloadBulkWebsites(urls, io, data) {
             const isUnderSubpath = (urlStr) => {
                 try {
                     const parsedUrl = new URL(urlStr);
-                    const currentHostname = parsedUrl.hostname.replace(/^www\./i, '');
+                    const currentHostname = parsedUrl.hostname.replace(/^www\./i, '').toLowerCase();
+                    
+                    // If it is on one of our allowed extra domains, skip primary domain subpath constraint
+                    if (extraHosts.some(host => currentHostname === host || currentHostname.endsWith('.' + host))) {
+                        return true;
+                    }
+
                     if (currentHostname !== baseHostname && !currentHostname.endsWith('.' + baseHostname)) {
                         return false;
                     }
@@ -478,6 +574,40 @@ async function downloadBulkWebsites(urls, io, data) {
 
             const urlFilter = (urlStr) => {
                 if (hasDirectoryLoop(urlStr)) return false;
+
+                // Check cancel flag
+                if (global.cancelFlags && global.cancelFlags[data.token]) {
+                    throw new CancelError("Scraping cancelled by user");
+                }
+
+                try {
+                    const parsedUrl = new URL(urlStr);
+                    const pathname = parsedUrl.pathname.toLowerCase();
+
+                    // Exclude Images
+                    if (data.excludeImages) {
+                        const imgExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico'];
+                        if (imgExtensions.some(ext => pathname.endsWith(ext)) || urlStr.includes('/wp-content/uploads/') || urlStr.includes('/assets/images/')) {
+                            return false;
+                        }
+                    }
+                    // Exclude Videos
+                    if (data.excludeVideos) {
+                        const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi'];
+                        if (videoExtensions.some(ext => pathname.endsWith(ext))) {
+                            return false;
+                        }
+                    }
+                    // Exclude PDFs
+                    if (data.excludePdfs) {
+                        if (pathname.endsWith('.pdf')) {
+                            return false;
+                        }
+                    }
+                } catch (e) {
+                    // invalid URL
+                }
+
                 const bloatPatterns = [
                     'google-analytics.com', 'googletagmanager.com', 'facebook.net',
                     'doubleclick.net', 'hotjar.com', 'analytics.js', 'gtag/js',
@@ -554,6 +684,13 @@ async function downloadBulkWebsites(urls, io, data) {
                 plugins: [new ProgressPlugin()]
             });
 
+            // Run SEO Report
+            try {
+                generateSeoReport(targetDir, websiteFolder, websiteUrl, finalOutputDir);
+            } catch (seoErr) {
+                console.error("SEO report error:", seoErr);
+            }
+
             // 4. Post-processing
             if (data.outputFormat === 'text') {
                 compileTextExtraction(targetDir, websiteFolder, websiteUrl, finalOutputDir);
@@ -563,7 +700,26 @@ async function downloadBulkWebsites(urls, io, data) {
 
         } catch (err) {
             console.error(`Error downloading ${websiteUrl} in bulk:`, err);
-            io.emit(data.token, { progress: `Error [${siteIndex}/${urls.length}] Failed to download ${websiteUrl}: ${err.message}` });
+            const isCancelled = err.name === 'CancelError' || err.message.includes("cancelled");
+            if (isCancelled) {
+                io.emit(data.token, { progress: `System Cancellation request received. Halting bulk crawl loop...` });
+                
+                // Run SEO report and compile text for the partial site
+                if (fs.existsSync(targetDir)) {
+                    try {
+                        generateSeoReport(targetDir, websiteFolder, websiteUrl, finalOutputDir);
+                    } catch (seoErr) {
+                        console.error("SEO report error:", seoErr);
+                    }
+                    if (data.outputFormat === 'text') {
+                        compileTextExtraction(targetDir, websiteFolder, websiteUrl, finalOutputDir);
+                    }
+                }
+                
+                break;
+            } else {
+                io.emit(data.token, { progress: `Error [${siteIndex}/${urls.length}] Failed to download ${websiteUrl}: ${err.message}` });
+            }
         }
 
         await delay(1500);
@@ -571,6 +727,12 @@ async function downloadBulkWebsites(urls, io, data) {
 
     // 5. Final bundling
     if (data.outputFormat === 'text') {
+        try {
+            generateBulkOfflineHtmlIndex(finalOutputDir, bulkSessionName);
+        } catch (sitemapErr) {
+            console.error("Failed to generate bulk offline HTML index:", sitemapErr);
+        }
+
         io.emit(data.token, { progress: "Converting" });
         archiver(bulkSessionName, io, data, finalOutputDir);
         
@@ -726,6 +888,271 @@ function compileTextExtraction(targetDir, websiteFolder, baseDomainUrl, customOu
     
     // Clean up HTML directory
     fs.rmSync(targetDir, { recursive: true, force: true });
+}
+
+function generateSeoReport(targetDir, websiteFolder, baseDomainUrl, customOutputDir) {
+    const htmlFiles = getHtmlFiles(targetDir);
+    if (htmlFiles.length === 0) return;
+
+    let report = `================================================================================\n`;
+    report += `WEBSITE SEO & QUALITY AUDIT REPORT\n`;
+    report += `Target Website: ${baseDomainUrl}\n`;
+    report += `Audited on: ${new Date().toUTCString()}\n`;
+    report += `Total Pages Checked: ${htmlFiles.length}\n`;
+    report += `================================================================================\n\n`;
+
+    let missingTitles = [];
+    let missingDescriptions = [];
+    let missingAlts = [];
+
+    // Check each HTML file
+    for (const filePath of htmlFiles) {
+        const relativePath = path.relative(targetDir, filePath);
+        let pageRoute = '/' + relativePath.replace(/index\.html$/i, '').replace(/\\/g, '/');
+        if (pageRoute.endsWith('/') && pageRoute.length > 1) {
+            pageRoute = pageRoute.slice(0, -1);
+        }
+
+        const html = fs.readFileSync(filePath, 'utf8');
+        const $ = cheerio.load(html);
+
+        // 1. Audit Title
+        const title = $('title').text().trim();
+        if (!title) {
+            missingTitles.push(pageRoute);
+        }
+
+        // 2. Audit Description
+        const desc = $('meta[name="description"]').attr('content') || $('meta[property="og:description"]').attr('content');
+        if (!desc || desc.trim() === '') {
+            missingDescriptions.push(pageRoute);
+        }
+
+        // 3. Audit Image Alts
+        $('img').each((i, el) => {
+            const alt = $(el).attr('alt');
+            const src = $(el).attr('src') || '';
+            if (alt === undefined || alt === null || alt.trim() === '') {
+                missingAlts.push({
+                    page: pageRoute,
+                    imgSrc: src
+                });
+            }
+        });
+    }
+
+    // Compile into report
+    report += `--------------------------------------------------------------------------------\n`;
+    report += `1. META TAG AUDIT\n`;
+    report += `--------------------------------------------------------------------------------\n`;
+    
+    report += `\n[Missing Page Titles] (${missingTitles.length} pages):\n`;
+    if (missingTitles.length > 0) {
+        missingTitles.forEach(p => report += `  - Route: ${p}\n`);
+    } else {
+        report += `  (No pages missing titles. Good!)\n`;
+    }
+
+    report += `\n[Missing Meta Descriptions] (${missingDescriptions.length} pages):\n`;
+    if (missingDescriptions.length > 0) {
+        missingDescriptions.forEach(p => report += `  - Route: ${p}\n`);
+    } else {
+        report += `  (No pages missing meta descriptions. Good!)\n`;
+    }
+
+    report += `\n\n--------------------------------------------------------------------------------\n`;
+    report += `2. IMAGE ACCESSIBILITY (ALT ATTRIBUTES) AUDIT\n`;
+    report += `--------------------------------------------------------------------------------\n`;
+    report += `Total images missing descriptive alt tags: ${missingAlts.length}\n\n`;
+    if (missingAlts.length > 0) {
+        missingAlts.slice(0, 100).forEach(item => {
+            report += `  - Route: ${item.page} | Image Src: ${item.imgSrc}\n`;
+        });
+        if (missingAlts.length > 100) {
+            report += `  ... and ${missingAlts.length - 100} more items.\n`;
+        }
+    } else {
+        report += `  (All images have alt tags. Perfect!)\n`;
+    }
+
+    const outputDir = customOutputDir || path.join(__dirname, '../public/sites');
+    if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+    }
+
+    // Save report
+    const reportPath = customOutputDir 
+        ? path.join(customOutputDir, `${websiteFolder}_seo-report.txt`)
+        : path.join(targetDir, `seo-report.txt`);
+        
+    fs.writeFileSync(reportPath, report, 'utf8');
+}
+
+function generateBulkOfflineHtmlIndex(finalOutputDir, bulkSessionName) {
+    const files = fs.readdirSync(finalOutputDir);
+    const txtFiles = files.filter(f => f.endsWith('.txt'));
+    if (txtFiles.length === 0) return;
+
+    let pagesJsonList = [];
+
+    for (const file of txtFiles) {
+        if (file.includes('seo-report')) continue;
+        const filePath = path.join(finalOutputDir, file);
+        const content = fs.readFileSync(filePath, 'utf8');
+        const domain = file.replace(/\.txt$/i, '');
+        
+        pagesJsonList.push({
+            route: domain,
+            title: domain,
+            content: content
+        });
+    }
+
+    const escapedJson = JSON.stringify(pagesJsonList).replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
+
+    const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Website Reader - ${bulkSessionName}</title>
+    <style>
+        :root {
+            --bg-sidebar: #0f172a;
+            --bg-content: #f8fafc;
+            --text-sidebar: #94a3b8;
+            --text-active: #ffffff;
+            --text-content: #1e293b;
+            --border-color: #cbd5e1;
+            --primary-color: #4f46e5;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            display: flex;
+            height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-content);
+            color: var(--text-content);
+            overflow: hidden;
+        }
+        .sidebar {
+            width: 300px;
+            background: var(--bg-sidebar);
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-color);
+            overflow-y: auto;
+        }
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #1e293b;
+            color: #ffffff;
+        }
+        .sidebar-header h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+        .sidebar-header p { font-size: 0.75rem; color: var(--text-sidebar); }
+        .page-list { list-style: none; padding: 12px 8px; }
+        .page-item {
+            padding: 10px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--text-sidebar);
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+            transition: background 0.2s, color 0.2s;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .page-item:hover { background: #1e293b; color: #ffffff; }
+        .page-item.active { background: var(--primary-color); color: #ffffff; font-weight: 600; }
+        .reader-pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            background: #ffffff;
+        }
+        .reader-header {
+            padding: 30px 40px;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f8fafc;
+        }
+        .reader-header h1 { font-size: 1.8rem; font-weight: 800; color: #0f172a; margin-bottom: 8px; }
+        .reader-header p { font-size: 0.85rem; color: #64748b; }
+        .reader-body {
+            padding: 40px;
+            font-size: 1rem;
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        .clean-text {
+            white-space: pre-wrap;
+            font-family: "Courier New", Courier, monospace;
+            color: #334155;
+            font-size: 0.95rem;
+            background: #f1f5f9;
+            padding: 24px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h3>Bulk Reader Dashboard</h3>
+            <p>Session: ${bulkSessionName}</p>
+        </div>
+        <ul id="pageList" class="page-list"></ul>
+    </div>
+    <div class="reader-pane">
+        <div class="reader-header">
+            <h1 id="pageTitle">Select a website</h1>
+            <p id="pageRoute"></p>
+        </div>
+        <div class="reader-body">
+            <pre id="pageContent" class="clean-text">Select a website from the sidebar list to view its compiled text profile.</pre>
+        </div>
+    </div>
+
+    <script>
+        const pages = ${escapedJson};
+        const pageList = document.getElementById('pageList');
+        const pageTitle = document.getElementById('pageTitle');
+        const pageRoute = document.getElementById('pageRoute');
+        const pageContent = document.getElementById('pageContent');
+
+        function loadPage(index) {
+            const page = pages[index];
+            document.querySelectorAll('.page-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('item-' + index).classList.add('active');
+
+            pageTitle.innerText = page.title;
+            pageRoute.innerText = "Domain Profile: " + page.route;
+            pageContent.innerText = page.content || "(No text content found.)";
+        }
+
+        pages.forEach((page, i) => {
+            const li = document.createElement('li');
+            li.id = 'item-' + i;
+            li.className = 'page-item';
+            li.title = page.title;
+            li.innerText = page.title;
+            li.onclick = () => loadPage(i);
+            pageList.appendChild(li);
+        });
+
+        if (pages.length > 0) {
+            loadPage(0);
+        }
+    </script>
+</body>
+</html>`;
+
+    fs.writeFileSync(path.join(finalOutputDir, 'index.html'), htmlContent, 'utf8');
 }
 
 

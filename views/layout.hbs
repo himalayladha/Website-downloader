@@ -57,6 +57,9 @@
         if (progressPercent) progressPercent.innerText = "100%";
         if (progressStatus) progressStatus.innerText = "Download complete!";
 
+        const stopBtnEl = document.getElementById('stopBtn');
+        if (stopBtnEl) stopBtnEl.style.display = 'none';
+
         setTimeout(() => { 
           if (progressBar) progressBar.style.opacity = "0"; 
         }, 600);
@@ -93,11 +96,20 @@
       else if (event.progress.startsWith("Scraping failed:")) {
         if (progressStatus) progressStatus.innerText = "Error encountered";
         if (progressFill) progressFill.style.backgroundColor = "var(--warning-color)";
+        
+        const stopBtnEl = document.getElementById('stopBtn');
+        if (stopBtnEl) stopBtnEl.style.display = 'none';
+
         if (statusBadge) {
           statusBadge.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> Failed';
           statusBadge.className = 'status-badge status-compressing';
         }
         appendLog("System", event.progress);
+
+        if (downloadBtn) {
+          downloadBtn.disabled = false;
+          downloadBtn.innerHTML = '<i class="fa-solid fa-arrow-down-long"></i> Start Download';
+        }
       }
       else {
         if (event.progress.includes('200 OK')) {
@@ -131,6 +143,7 @@
     const outputFormatSelect = document.getElementById('outputFormat');
     const depthGroup = document.getElementById('depthGroup');
     const maxDepthSelect = document.getElementById('maxDepth');
+    const stopBtn = document.getElementById('stopBtn');
 
     if (scrapeModeSelect) {
       scrapeModeSelect.onchange = () => {
@@ -139,6 +152,15 @@
         } else {
           if (depthGroup) depthGroup.style.display = 'none';
         }
+      };
+    }
+
+    if (stopBtn) {
+      stopBtn.onclick = () => {
+        appendLog("System", "Sending cancellation request to server...");
+        socket.emit('cancel', { token: localStorage['token'] });
+        stopBtn.disabled = true;
+        stopBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Cancelling...';
       };
     }
 
@@ -155,6 +177,12 @@
         const recursive = scrapeModeSelect ? (scrapeModeSelect.value === 'all') : false;
         const depthVal = maxDepthSelect ? maxDepthSelect.value : 'unlimited';
         const maxRecursiveDepth = depthVal === 'unlimited' ? null : parseInt(depthVal, 10);
+
+        // Fetch advanced options
+        const excludeImages = document.getElementById('excludeImages')?.checked || false;
+        const excludeVideos = document.getElementById('excludeVideos')?.checked || false;
+        const excludePdfs = document.getElementById('excludePdfs')?.checked || false;
+        const extraDomains = document.getElementById('extraDomains')?.value || '';
 
         numberOfFiles = 0;
         if (nFilesCount) nFilesCount.innerText = '0';
@@ -185,6 +213,12 @@
           progressPercent.innerText = '10%';
         }
 
+        if (stopBtn) {
+          stopBtn.style.display = 'inline-flex';
+          stopBtn.disabled = false;
+          stopBtn.innerHTML = '<i class="fa-solid fa-circle-stop"></i> Stop & Package';
+        }
+
         if (statusBadge) {
           statusBadge.style.display = 'inline-flex';
           statusBadge.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Downloading...';
@@ -207,7 +241,11 @@
           recursive,
           maxRecursiveDepth,
           outputFormat,
-          cookies
+          cookies,
+          excludeImages,
+          excludeVideos,
+          excludePdfs,
+          extraDomains
         });
       };
     }

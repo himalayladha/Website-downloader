@@ -248,9 +248,41 @@ html, body {
 .setting-select:focus {
   border-color: var(--primary-color);
 }
+.setting-input {
+  padding: 10px 14px;
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-main);
+  font-size: 0.95rem;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 0.2s;
+  width: 100%;
+}
 
+.setting-input:focus {
+  border-color: var(--primary-color);
+}
 
+.btn-stop {
+  padding: 4px 8px;
+  background: var(--warning-color);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: opacity 0.2s;
+}
 
+.btn-stop:hover {
+  opacity: 0.9;
+}
 /* Progress Bar */
 .progress-wrapper {
   margin-bottom: 28px;
@@ -432,6 +464,7 @@ html, body {
   .btn-primary { width: 100%; justify-content: center; }
   .main-card { padding: 24px; }
   .settings-panel { grid-template-columns: 1fr; gap: 20px; }
+  .setting-group { grid-column: span 1 !important; }
 }
 
 /* Tabs styling */
