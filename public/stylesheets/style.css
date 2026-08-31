@@ -202,8 +202,8 @@ html, body {
 /* Settings Panel */
 .settings-panel {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 32px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
   margin-bottom: 28px;
   padding: 24px;
   background: #f8fafc;
@@ -249,30 +249,7 @@ html, body {
   border-color: var(--primary-color);
 }
 
-.setting-textarea {
-  flex: 1;
-  min-height: 100px;
-  padding: 10px 14px;
-  background: #ffffff;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  color: var(--text-main);
-  font-size: 0.9rem;
-  font-family: var(--font-mono);
-  outline: none;
-  resize: none;
-  transition: border-color 0.2s;
-}
 
-.setting-textarea:focus {
-  border-color: var(--primary-color);
-}
-
-.setting-help {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  line-height: 1.4;
-}
 
 /* Progress Bar */
 .progress-wrapper {

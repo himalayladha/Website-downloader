@@ -129,7 +129,6 @@
 
     const scrapeModeSelect = document.getElementById('scrapeMode');
     const outputFormatSelect = document.getElementById('outputFormat');
-    const requestCookiesInput = document.getElementById('requestCookies');
     const depthGroup = document.getElementById('depthGroup');
     const maxDepthSelect = document.getElementById('maxDepth');
 
@@ -152,7 +151,7 @@
         }
 
         const outputFormat = outputFormatSelect ? outputFormatSelect.value : 'zip';
-        const cookies = requestCookiesInput ? requestCookiesInput.value.trim() : '';
+        const cookies = '';
         const recursive = scrapeModeSelect ? (scrapeModeSelect.value === 'all') : false;
         const depthVal = maxDepthSelect ? maxDepthSelect.value : 'unlimited';
         const maxRecursiveDepth = depthVal === 'unlimited' ? null : parseInt(depthVal, 10);

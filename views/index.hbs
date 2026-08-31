@@ -40,44 +40,30 @@
     </div>
 
     <div class="settings-panel">
-      <div class="settings-column settings-main">
-        <div class="setting-group">
-          <label for="scrapeMode" class="setting-label">Download Mode</label>
-          <select id="scrapeMode" class="setting-select">
-            <option value="single">Single Page</option>
-            <option value="all" selected>All Linked Pages (Recursive)</option>
-          </select>
-        </div>
-        <div class="setting-group">
-          <label for="outputFormat" class="setting-label">Output Format</label>
-          <select id="outputFormat" class="setting-select">
-            <option value="zip" selected>ZIP Archive (Full Assets)</option>
-            <option value="text">Structured Text (Markdown)</option>
-          </select>
-        </div>
-        <div id="depthGroup" class="setting-group">
-          <label for="maxDepth" class="setting-label">Max Recursive Depth</label>
-          <select id="maxDepth" class="setting-select">
-            <option value="unlimited" selected>Unlimited (All Pages)</option>
-            <option value="1">1 page deep</option>
-            <option value="2">2 pages deep</option>
-            <option value="3">3 pages deep</option>
-            <option value="4">4 pages deep</option>
-            <option value="5">5 pages deep</option>
-          </select>
-        </div>
+      <div class="setting-group">
+        <label for="scrapeMode" class="setting-label">Download Mode</label>
+        <select id="scrapeMode" class="setting-select">
+          <option value="single">Single Page</option>
+          <option value="all" selected>All Linked Pages (Recursive)</option>
+        </select>
       </div>
-      <div class="settings-column settings-advanced">
-        <div class="setting-group" style="height: 100%; display: flex; flex-direction: column;">
-          <label for="requestCookies" class="setting-label">Request Cookies (For password-protected or authenticated sites)</label>
-          <textarea 
-            id="requestCookies" 
-            class="setting-textarea" 
-            placeholder="e.g. storefront_digest=4a3b2c...; session=xyz"
-            autocomplete="off"
-          ></textarea>
-          <span class="setting-help">Paste cookies here to download password-protected sites (e.g., Shopify preview stores). Copy cookies from Developer Tools (F12) Network tab.</span>
-        </div>
+      <div class="setting-group">
+        <label for="outputFormat" class="setting-label">Output Format</label>
+        <select id="outputFormat" class="setting-select">
+          <option value="zip" selected>ZIP Archive (Full Assets)</option>
+          <option value="text">Structured Text (Markdown)</option>
+        </select>
+      </div>
+      <div id="depthGroup" class="setting-group">
+        <label for="maxDepth" class="setting-label">Max Recursive Depth</label>
+        <select id="maxDepth" class="setting-select">
+          <option value="unlimited" selected>Unlimited (All Pages)</option>
+          <option value="1">1 page deep</option>
+          <option value="2">2 pages deep</option>
+          <option value="3">3 pages deep</option>
+          <option value="4">4 pages deep</option>
+          <option value="5">5 pages deep</option>
+        </select>
       </div>
     </div>
 
