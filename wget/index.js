@@ -104,11 +104,42 @@ module.exports = async (io, data) => {
         const parsedBaseUrl = new URL(websiteUrl);
         const baseHostname = parsedBaseUrl.hostname.replace(/^www\./i, '');
 
+        // Extract subpath base directory
+        let basePath = parsedBaseUrl.pathname;
+        if (!basePath.endsWith('/') && path.extname(basePath) !== '') {
+            basePath = path.dirname(basePath);
+        }
+        if (!basePath.endsWith('/')) {
+            basePath = basePath + '/';
+        }
+
         const isSameDomain = (urlStr) => {
             try {
                 const parsedUrl = new URL(urlStr);
                 const currentHostname = parsedUrl.hostname.replace(/^www\./i, '');
                 return currentHostname === baseHostname || currentHostname.endsWith('.' + baseHostname);
+            } catch (e) {
+                return false;
+            }
+        };
+
+        const isUnderSubpath = (urlStr) => {
+            try {
+                const parsedUrl = new URL(urlStr);
+                const currentHostname = parsedUrl.hostname.replace(/^www\./i, '');
+                
+                // Must be on the same domain
+                if (currentHostname !== baseHostname && !currentHostname.endsWith('.' + baseHostname)) {
+                    return false;
+                }
+
+                // Check if the path starts with our basePath prefix
+                let currentPath = parsedUrl.pathname;
+                if (currentPath === basePath.slice(0, -1)) {
+                    currentPath = currentPath + '/';
+                }
+                
+                return currentPath.startsWith(basePath);
             } catch (e) {
                 return false;
             }
@@ -181,10 +212,14 @@ module.exports = async (io, data) => {
             }
 
             if (data.outputFormat === 'text') {
-                // If it's a text extraction, only follow same-domain HTML pages
-                return isSameDomain(urlStr) && isHtmlPage(urlStr);
+                // If it's a text extraction, only follow HTML pages under the specified subpath
+                return isUnderSubpath(urlStr) && isHtmlPage(urlStr);
             } else {
-                // Always allow if it's on the same domain (including subdomains)
+                // If it's an HTML page, only download it if it's under the subpath
+                if (isHtmlPage(urlStr)) {
+                    return isUnderSubpath(urlStr);
+                }
+                // Always allow static assets if they are on the same domain
                 if (isSameDomain(urlStr)) {
                     return true;
                 }
