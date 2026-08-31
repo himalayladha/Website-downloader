@@ -345,6 +345,9 @@ async function downloadBulkWebsites(urls, io, data) {
     if (!fs.existsSync(finalOutputDir)) {
         fs.mkdirSync(finalOutputDir, { recursive: true });
     }
+    if (!fs.existsSync(bulkDir)) {
+        fs.mkdirSync(bulkDir, { recursive: true });
+    }
 
     const { default: scrape } = await import('website-scraper');
 
@@ -382,7 +385,13 @@ async function downloadBulkWebsites(urls, io, data) {
 
             // In bulk mode, targetDir is a subdirectory inside the bulkSession folder
             const targetDir = path.join(bulkDir, websiteFolder);
-            fs.mkdirSync(targetDir, { recursive: true });
+            if (fs.existsSync(targetDir)) {
+                try {
+                    fs.rmSync(targetDir, { recursive: true, force: true });
+                } catch (rmErr) {
+                    console.error("Error clearing existing targetDir:", rmErr);
+                }
+            }
 
             // 1. Extract subpath base directory
             let basePath = parsedBaseUrl.pathname;
