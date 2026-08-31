@@ -25,14 +25,14 @@
     <div class="input-form">
       <div class="input-wrapper">
         <i class="fa-solid fa-globe input-icon"></i>
-        <input 
-          type="text" 
+        <textarea 
           id="website" 
           class="url-input" 
-          placeholder="https://example.com"
+          placeholder="https://example.com&#10;For bulk download, enter one link per line..."
+          rows="1"
           autocomplete="off"
-          spellcheck="false" 
-        />
+          spellcheck="false"
+        ></textarea>
       </div>
       <button type="button" id="download" class="btn-primary">
         <i class="fa-solid fa-arrow-down-long"></i> Start Download

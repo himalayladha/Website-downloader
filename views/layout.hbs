@@ -67,14 +67,15 @@
         }
         
         const outputFormatVal = outputFormatSelect ? outputFormatSelect.value : 'zip';
-        const fileExt = outputFormatVal === 'text' ? '.txt' : '.zip';
-        const fileDesc = outputFormatVal === 'text' ? 'Text file' : 'Zip archive';
+        const isBulk = event.file.startsWith('bulk-download-');
+        const fileExt = (outputFormatVal === 'text' && !isBulk) ? '.txt' : '.zip';
+        const fileDesc = (outputFormatVal === 'text' && !isBulk) ? 'Text file' : 'Zip archive';
         
         appendLog("Success", `${fileDesc} ready (${event.file}${fileExt})`);
         
         if (downloadWebsite) {
           downloadWebsite.style.display = 'inline-flex';
-          if (outputFormatVal === 'text') {
+          if (outputFormatVal === 'text' && !isBulk) {
             downloadWebsite.innerHTML = '<i class="fa-solid fa-file-lines"></i> Download Extracted Text (.txt)';
           } else {
             downloadWebsite.innerHTML = '<i class="fa-solid fa-file-zipper"></i> Download ZIP Archive';
@@ -194,7 +195,12 @@
         downloadBtn.disabled = true;
         downloadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
 
-        appendLog("Info", `Downloading ${website} (${recursive ? (maxRecursiveDepth ? `recursive up to ${maxRecursiveDepth} layers` : 'recursive unlimited') : 'single page'}) [Format: ${outputFormat}]...`);
+        const parsedUrls = website.split(/[\n,]/).map(u => u.trim()).filter(u => u.length > 0);
+        let logMessage = `Downloading ${website}`;
+        if (parsedUrls.length > 1) {
+          logMessage = `Downloading ${parsedUrls.length} websites in bulk`;
+        }
+        appendLog("Info", `${logMessage} (${recursive ? (maxRecursiveDepth ? `recursive up to ${maxRecursiveDepth} layers` : 'recursive unlimited') : 'single page'}) [Format: ${outputFormat}]...`);
 
         socket.emit('request', { 
           token: localStorage['token'], 

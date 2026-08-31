@@ -144,8 +144,7 @@ html, body {
 .input-icon {
   position: absolute;
   left: 16px;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 17px;
   color: var(--text-muted);
   font-size: 1rem;
 }
@@ -160,6 +159,9 @@ html, body {
   font-size: 1rem;
   font-family: var(--font-sans);
   transition: border-color 0.25s, box-shadow 0.25s;
+  resize: vertical;
+  min-height: 50px;
+  line-height: 1.4;
 }
 
 .url-input:focus {

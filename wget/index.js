@@ -7,16 +7,37 @@ const archiver = require('../archiver');
 
 
 module.exports = async (io, data) => {
-    let websiteUrl = data.website ? data.website.trim() : "";
-    if (!websiteUrl) {
-        io.emit(data.token, { progress: "Invalid URL provided." });
+    let websiteInput = data.website ? data.website.trim() : "";
+    if (!websiteInput) {
+        io.emit(data.token, { progress: "Invalid URL(s) provided." });
         return;
     }
 
-    if (!/^https?:\/\//i.test(websiteUrl)) {
-        websiteUrl = 'http://' + websiteUrl;
+    // Parse urls (newline or comma separated)
+    const urls = websiteInput
+        .split(/[\n,]/)
+        .map(url => url.trim())
+        .filter(url => url.length > 0)
+        .map(url => {
+            if (!/^https?:\/\//i.test(url)) {
+                return 'http://' + url;
+            }
+            return url;
+        });
+
+    if (urls.length === 0) {
+        io.emit(data.token, { progress: "Invalid URL(s) provided." });
+        return;
     }
 
+    if (urls.length === 1) {
+        await downloadSingleWebsite(urls[0], io, data);
+    } else {
+        await downloadBulkWebsites(urls, io, data);
+    }
+};
+
+async function downloadSingleWebsite(websiteUrl, io, data) {
     const websiteFolder = getWebsiteFolderName(websiteUrl);
     const targetDir = path.join(__dirname, '../', websiteFolder);
 
@@ -312,6 +333,245 @@ module.exports = async (io, data) => {
             io.emit(data.token, { progress: `Scraping failed: ${err.message}` });
         }
     }
+}
+
+async function downloadBulkWebsites(urls, io, data) {
+    const timestamp = Date.now();
+    const bulkSessionName = `bulk-download-${timestamp}`;
+    const bulkDir = path.join(__dirname, '../', bulkSessionName);
+    
+    // Setup target output folder
+    const finalOutputDir = path.join(__dirname, '../public/sites', bulkSessionName);
+    if (!fs.existsSync(finalOutputDir)) {
+        fs.mkdirSync(finalOutputDir, { recursive: true });
+    }
+
+    const { default: scrape } = await import('website-scraper');
+
+    class ProgressPlugin {
+        apply(registerAction) {
+            registerAction('onResourceSaved', ({ resource }) => {
+                const url = resource.getUrl();
+                io.emit(data.token, { progress: `200 OK ${url}` });
+            });
+            registerAction('onResourceError', ({ resource, error }) => {
+                if (resource) {
+                    io.emit(data.token, { progress: `Error ${resource.getUrl()}: ${error.message}` });
+                }
+            });
+        }
+    }
+
+    const recursive = !!data.recursive;
+    const maxRecursiveDepth = (data.maxRecursiveDepth !== undefined && data.maxRecursiveDepth !== null) ? parseInt(data.maxRecursiveDepth, 10) : null;
+
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    io.emit(data.token, { progress: `Starting bulk download of ${urls.length} websites...` });
+
+    for (let index = 0; index < urls.length; index++) {
+        const websiteUrl = urls[index];
+        const siteIndex = index + 1;
+        
+        io.emit(data.token, { progress: `Info [${siteIndex}/${urls.length}] Preparing to download: ${websiteUrl}` });
+        
+        try {
+            const parsedBaseUrl = new URL(websiteUrl);
+            const baseHostname = parsedBaseUrl.hostname.replace(/^www\./i, '');
+            const websiteFolder = getWebsiteFolderName(websiteUrl);
+
+            // In bulk mode, targetDir is a subdirectory inside the bulkSession folder
+            const targetDir = path.join(bulkDir, websiteFolder);
+            fs.mkdirSync(targetDir, { recursive: true });
+
+            // 1. Extract subpath base directory
+            let basePath = parsedBaseUrl.pathname;
+            if (!basePath.endsWith('/') && path.extname(basePath) !== '') {
+                basePath = path.dirname(basePath);
+            }
+            if (!basePath.endsWith('/')) {
+                basePath = basePath + '/';
+            }
+
+            const isSameDomain = (urlStr) => {
+                try {
+                    const parsedUrl = new URL(urlStr);
+                    const currentHostname = parsedUrl.hostname.replace(/^www\./i, '');
+                    return currentHostname === baseHostname || currentHostname.endsWith('.' + baseHostname);
+                } catch (e) {
+                    return false;
+                }
+            };
+
+            const isUnderSubpath = (urlStr) => {
+                try {
+                    const parsedUrl = new URL(urlStr);
+                    const currentHostname = parsedUrl.hostname.replace(/^www\./i, '');
+                    if (currentHostname !== baseHostname && !currentHostname.endsWith('.' + baseHostname)) {
+                        return false;
+                    }
+                    let currentPath = parsedUrl.pathname;
+                    if (currentPath === basePath.slice(0, -1)) {
+                        currentPath = currentPath + '/';
+                    }
+                    return currentPath.startsWith(basePath);
+                } catch (e) {
+                    return false;
+                }
+            };
+
+            const isAsset = (urlStr) => {
+                try {
+                    const parsedUrl = new URL(urlStr);
+                    const pathname = parsedUrl.pathname.toLowerCase();
+                    const assetExtensions = [
+                        '.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg', 
+                        '.woff', '.woff2', '.ttf', '.eot', '.otf', '.ico', '.webp',
+                        '.mp4', '.webm', '.ogg', '.mp3', '.wav', '.pdf'
+                    ];
+                    return assetExtensions.some(ext => pathname.endsWith(ext)) || urlStr.includes('/wp-content/uploads/') || urlStr.includes('/assets/');
+                } catch (e) {
+                    return false;
+                }
+            };
+
+            const isHtmlPage = (urlStr) => {
+                try {
+                    const parsedUrl = new URL(urlStr);
+                    const pathname = parsedUrl.pathname.toLowerCase();
+                    const assetExtensions = [
+                        '.css', '.js', '.png', '.jpg', '.jpeg', '.gif', '.svg', 
+                        '.woff', '.woff2', '.ttf', '.eot', '.otf', '.ico', '.webp',
+                        '.mp4', '.webm', '.ogg', '.mp3', '.wav', '.pdf', '.zip', '.rar'
+                    ];
+                    const hasAssetExt = assetExtensions.some(ext => pathname.endsWith(ext));
+                    return !hasAssetExt;
+                } catch (e) {
+                    return false;
+                }
+            };
+
+            const hasDirectoryLoop = (urlStr) => {
+                try {
+                    const parsed = new URL(urlStr);
+                    const segments = parsed.pathname.split('/').filter(Boolean);
+                    if (segments.length > 5) {
+                        const uniqueSegments = new Set(segments);
+                        if (uniqueSegments.size !== segments.length) {
+                            return true;
+                        }
+                    }
+                } catch (e) {
+                    // invalid URL
+                }
+                return false;
+            };
+
+            const urlFilter = (urlStr) => {
+                if (hasDirectoryLoop(urlStr)) return false;
+                const bloatPatterns = [
+                    'google-analytics.com', 'googletagmanager.com', 'facebook.net',
+                    'doubleclick.net', 'hotjar.com', 'analytics.js', 'gtag/js',
+                    'connect.facebook.net', 'snapchat.com', 'pinterest.com',
+                    'tiktok.com', 'klaviyo.com', 'pixel', 'browser-sync',
+                    'quantserve.com', 'scorecardresearch.com', 'crazyegg.com'
+                ];
+                const lowerUrl = urlStr.toLowerCase();
+                if (bloatPatterns.some(pattern => lowerUrl.includes(pattern))) {
+                    return false;
+                }
+
+                if (data.outputFormat === 'text') {
+                    return isUnderSubpath(urlStr) && isHtmlPage(urlStr);
+                } else {
+                    if (isHtmlPage(urlStr)) {
+                        return isUnderSubpath(urlStr);
+                    }
+                    if (isSameDomain(urlStr)) {
+                        return true;
+                    }
+                    return isAsset(urlStr);
+                }
+            };
+
+            // Setup request headers (using browser emulation)
+            const requestHeaders = {
+                'User-Agent': data.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9'
+            };
+            if (data.cookies) {
+                let rawCookies = data.cookies.trim();
+                if (rawCookies.toLowerCase().startsWith('cookie:')) {
+                    rawCookies = rawCookies.slice(7).trim();
+                }
+                requestHeaders['Cookie'] = rawCookies;
+            }
+
+            // 2. Pre-flight check
+            try {
+                const response = await got(websiteUrl, {
+                    headers: requestHeaders,
+                    timeout: 8000,
+                    retry: 0,
+                    followRedirect: true
+                });
+                const html = response.body || "";
+                const isShopify = html.includes('myshopify.com') || html.includes('Shopify.shop');
+                const isPasswordPage = html.includes('action="/password"') || html.includes('storefront_digest') || response.url.includes('/password');
+
+                if (isShopify) {
+                    io.emit(data.token, { progress: `Info [${siteIndex}/${urls.length}] Detected Shopify store.` });
+                    if (isPasswordPage && !data.cookies) {
+                        io.emit(data.token, { progress: `System Warning [${siteIndex}/${urls.length}]: Shopify password protection detected!` });
+                    }
+                }
+            } catch (preflightErr) {
+                console.error("Preflight error in bulk:", preflightErr);
+            }
+
+            io.emit(data.token, { progress: `200 OK Fetching site ${siteIndex}/${urls.length} structure...` });
+
+            // 3. Scrape URL
+            await scrape({
+                urls: [websiteUrl],
+                directory: targetDir,
+                recursive: recursive,
+                maxRecursiveDepth: recursive ? maxRecursiveDepth : null,
+                urlFilter: urlFilter,
+                request: {
+                    headers: requestHeaders
+                },
+                plugins: [new ProgressPlugin()]
+            });
+
+            // 4. Post-processing
+            if (data.outputFormat === 'text') {
+                compileTextExtraction(targetDir, websiteFolder, websiteUrl, finalOutputDir);
+            }
+
+            io.emit(data.token, { progress: `Info [${siteIndex}/${urls.length}] Successfully downloaded ${websiteUrl}.` });
+
+        } catch (err) {
+            console.error(`Error downloading ${websiteUrl} in bulk:`, err);
+            io.emit(data.token, { progress: `Error [${siteIndex}/${urls.length}] Failed to download ${websiteUrl}: ${err.message}` });
+        }
+
+        await delay(1500);
+    }
+
+    // 5. Final bundling
+    if (data.outputFormat === 'text') {
+        io.emit(data.token, { progress: "Converting" });
+        archiver(bulkSessionName, io, data, finalOutputDir);
+        
+        try {
+            fs.rmSync(bulkDir, { recursive: true, force: true });
+        } catch (rmErr) {}
+    } else {
+        io.emit(data.token, { progress: "Converting" });
+        archiver(bulkSessionName, io, data, bulkDir);
+    }
 };
 
 function getWebsiteFolderName(websiteUrl) {
@@ -390,7 +650,7 @@ function extractCleanMarkdown(html) {
     return markdown.trim();
 }
 
-function compileTextExtraction(targetDir, websiteFolder, baseDomainUrl) {
+function compileTextExtraction(targetDir, websiteFolder, baseDomainUrl, customOutputDir) {
     const htmlFiles = getHtmlFiles(targetDir);
     if (htmlFiles.length === 0) {
         throw new Error("No HTML pages found to extract text from.");
@@ -447,7 +707,7 @@ function compileTextExtraction(targetDir, websiteFolder, baseDomainUrl) {
         content += `\n\n`;
     }
     
-    const outputDir = path.join(__dirname, '../public/sites');
+    const outputDir = customOutputDir || path.join(__dirname, '../public/sites');
     if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true });
     }

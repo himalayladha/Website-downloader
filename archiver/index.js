@@ -1,7 +1,7 @@
 var archiver = require('archiver');
 var fs = require('fs');
 
-module.exports = (file, io, data) => {
+module.exports = (file, io, data, customSourceDir) => {
   if (!fs.existsSync('./public/sites')) {
     fs.mkdirSync('./public/sites', { recursive: true });
   }
@@ -32,7 +32,7 @@ module.exports = (file, io, data) => {
 
   archive.pipe(output);
 
-  var sourceDir = './' + file;
+  var sourceDir = customSourceDir || ('./' + file);
   if (fs.existsSync(sourceDir)) {
     archive.directory(sourceDir, false);
   }
