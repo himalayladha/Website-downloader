@@ -27,6 +27,7 @@ node_modules/
 !/app.json
 !/package.json
 !/package-lock.json
+!/start.bat
 
 # Ignore generated zips in public sites
 /public/sites/*.zip

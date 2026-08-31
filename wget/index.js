@@ -1,7 +1,8 @@
 const path = require('path');
 const fs = require('fs');
 const cheerio = require('cheerio');
-const got = require('got');
+const gotModule = require('got');
+const got = typeof gotModule === 'function' ? gotModule : (gotModule.got || gotModule.default || gotModule);
 const archiver = require('../archiver');
 
 
