@@ -10,7 +10,7 @@ echo ===================================================
 echo.
 
 :: Check Server Status
-netstat -aon | findstr :3000 >nul 2>&1
+netstat -aon | findstr /C:"LISTENING" | findstr :3000 >nul 2>&1
 if %errorlevel% equ 0 (
     echo  Server Status: [RUNNING]
     echo  Local Address: http://localhost:3000
@@ -37,7 +37,7 @@ goto menu
 
 :start_server
 echo.
-netstat -aon | findstr :3000 >nul 2>&1
+netstat -aon | findstr /C:"LISTENING" | findstr :3000 >nul 2>&1
 if %errorlevel% equ 0 (
     echo [INFO] Server is already running. Opening browser...
     start "" "http://localhost:3000"
@@ -71,7 +71,7 @@ goto menu
 echo.
 echo [INFO] Stopping server...
 set "killed=0"
-for /f "tokens=5" %%a in ('netstat -aon ^| findstr :3000') do (
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr /C:"LISTENING" ^| findstr :3000') do (
     taskkill /F /PID %%a >nul 2>&1
     set "killed=1"
 )
@@ -86,7 +86,7 @@ goto menu
 :restart_server
 echo.
 echo [INFO] Restarting server...
-for /f "tokens=5" %%a in ('netstat -aon ^| findstr :3000') do (
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr /C:"LISTENING" ^| findstr :3000') do (
     taskkill /F /PID %%a >nul 2>&1
 )
 timeout /t 1 /nobreak >nul
