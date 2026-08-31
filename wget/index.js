@@ -68,8 +68,8 @@ async function downloadSingleWebsite(websiteUrl, io, data) {
         io.emit(data.token, { progress: "Info Performing smart pre-flight check on destination URL..." });
         const response = await got(websiteUrl, {
             headers: preflightHeaders,
-            timeout: 8000,
-            retry: 0,
+            timeout: { request: 8000 },
+            retry: { limit: 0 },
             followRedirect: true
         });
 
@@ -521,8 +521,8 @@ async function downloadBulkWebsites(urls, io, data) {
             try {
                 const response = await got(websiteUrl, {
                     headers: requestHeaders,
-                    timeout: 8000,
-                    retry: 0,
+                    timeout: { request: 8000 },
+                    retry: { limit: 0 },
                     followRedirect: true
                 });
                 const html = response.body || "";
