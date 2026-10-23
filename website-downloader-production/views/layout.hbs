@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Website Downloader</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+    <script src="/socket.io/socket.io.js"></script>
+  </head>
+  <body>
+    {{{body}}}
+  </body>
+  <script>
+    var numberOfFiles = 0;
+    const downloadWebsite = document.getElementById('finalDownloadBtn');
+    const logConsole = document.getElementById('logConsole');
+    const statusBadge = document.getElementById('statusBadge');
+    const nFilesContainer = document.getElementById('nFilesP');
+    let nFilesCount = document.getElementById('nFiles');
+    const downloadBtn = document.getElementById('download');
+    const websiteInput = document.getElementById('website');
+    const progressBar = document.getElementById('progressBar');
+
+    const progressWrapper = document.getElementById('progressWrapper');
+    const progressStatus = document.getElementById('progressStatus');
+    const progressPercent = document.getElementById('progressPercent');
+    const progressFill = document.getElementById('progressFill');
+
+    if (!localStorage['token']) {
+      localStorage['token'] = generateToken(20);
+    }
+
+    var socket = io.connect(document.URL);
+
+    socket.on(localStorage['token'], (event) => {
+      console.log(event);
+
+      if (event.progress === "Converting") {
+        if (progressBar) progressBar.style.width = "95%";
+        if (progressFill) progressFill.style.width = "95%";
+        if (progressPercent) progressPercent.innerText = "95%";
+        if (progressStatus) progressStatus.innerText = "Compressing assets into ZIP...";
+
+        if (statusBadge) {
+          statusBadge.innerHTML = '<i class="fa-solid fa-file-zipper fa-spin"></i> Compressing into ZIP...';
+          statusBadge.className = 'status-badge status-compressing';
+        }
+        appendLog("System", "Compressing assets into ZIP archive...");
+      }
+      else if (event.progress === "Completed") {
+        if (progressBar) progressBar.style.width = "100%";
+        if (progressFill) progressFill.style.width = "100%";
+        if (progressPercent) progressPercent.innerText = "100%";
+        if (progressStatus) progressStatus.innerText = "Download complete!";
+
+        const stopBtnEl = document.getElementById('stopBtn');
+        if (stopBtnEl) stopBtnEl.style.display = 'none';
+
+        setTimeout(() => { 
+          if (progressBar) progressBar.style.opacity = "0"; 
+        }, 600);
+        
+        if (statusBadge) {
+          statusBadge.innerHTML = '<i class="fa-solid fa-check"></i> Complete';
+          statusBadge.className = 'status-badge status-complete';
+        }
+        
+        const outputFormatVal = outputFormatSelect ? outputFormatSelect.value : 'zip';
+        const isBulk = event.file.startsWith('bulk-download-');
+        const fileExt = (outputFormatVal === 'text' && !isBulk) ? '.txt' : '.zip';
+        const fileDesc = (outputFormatVal === 'text' && !isBulk) ? 'Text file' : 'Zip archive';
+        
+        appendLog("Success", `${fileDesc} ready (${event.file}${fileExt})`);
+        
+        if (downloadWebsite) {
+          downloadWebsite.style.display = 'inline-flex';
+          if (outputFormatVal === 'text' && !isBulk) {
+            downloadWebsite.innerHTML = '<i class="fa-solid fa-file-lines"></i> Download Extracted Text (.txt)';
+          } else {
+            downloadWebsite.innerHTML = '<i class="fa-solid fa-file-zipper"></i> Download ZIP Archive';
+          }
+          downloadWebsite.onclick = function() {
+            window.location = '/sites/' + event.file + fileExt;
+          };
+        }
+
+        if (downloadBtn) {
+          downloadBtn.disabled = false;
+          downloadBtn.innerHTML = '<i class="fa-solid fa-arrow-down-long"></i> Start Download';
+        }
+      }
+      else if (event.progress.startsWith("Scraping failed:")) {
+        if (progressStatus) progressStatus.innerText = "Error encountered";
+        if (progressFill) progressFill.style.backgroundColor = "var(--warning-color)";
+        
+        const stopBtnEl = document.getElementById('stopBtn');
+        if (stopBtnEl) stopBtnEl.style.display = 'none';
+
+        if (statusBadge) {
+          statusBadge.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i> Failed';
+          statusBadge.className = 'status-badge status-compressing';
+        }
+        appendLog("System", event.progress);
+
+        if (downloadBtn) {
+          downloadBtn.disabled = false;
+          downloadBtn.innerHTML = '<i class="fa-solid fa-arrow-down-long"></i> Start Download';
+        }
+      }
+      else {
+        if (event.progress.includes('200 OK')) {
+          numberOfFiles++;
+          if (nFilesContainer) nFilesContainer.style.display = 'inline-flex';
+          if (nFilesCount) nFilesCount.innerText = numberOfFiles;
+          
+          let pct = Math.min(90, 10 + Math.floor(numberOfFiles * 1.2));
+          if (progressBar) {
+            progressBar.style.width = pct + "%";
+            progressBar.style.opacity = "1";
+          }
+          if (progressFill) {
+            progressFill.style.width = pct + "%";
+          }
+          if (progressPercent) {
+            progressPercent.innerText = pct + "%";
+          }
+          if (progressStatus) {
+            const outputFormatVal = outputFormatSelect ? outputFormatSelect.value : 'zip';
+            const unit = outputFormatVal === 'text' ? 'pages' : 'files';
+            progressStatus.innerText = `Downloading (${numberOfFiles} ${unit} saved)...`;
+          }
+        }
+
+        appendLog("Log", event.progress);
+      }
+    });
+
+    const scrapeModeSelect = document.getElementById('scrapeMode');
+    const outputFormatSelect = document.getElementById('outputFormat');
+    const depthGroup = document.getElementById('depthGroup');
+    const maxDepthSelect = document.getElementById('maxDepth');
+    const stopBtn = document.getElementById('stopBtn');
+
+    if (scrapeModeSelect) {
+      scrapeModeSelect.onchange = () => {
+        if (scrapeModeSelect.value === 'all') {
+          if (depthGroup) depthGroup.style.display = 'block';
+        } else {
+          if (depthGroup) depthGroup.style.display = 'none';
+        }
+      };
+    }
+
+    if (stopBtn) {
+      stopBtn.onclick = () => {
+        appendLog("System", "Sending cancellation request to server...");
+        socket.emit('cancel', { token: localStorage['token'] });
+        stopBtn.disabled = true;
+        stopBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Cancelling...';
+      };
+    }
+
+    if (downloadBtn) {
+      downloadBtn.onclick = () => {
+        var website = websiteInput.value.trim();
+        if (!website) {
+          websiteInput.focus();
+          return;
+        }
+
+        const outputFormat = outputFormatSelect ? outputFormatSelect.value : 'zip';
+        const cookies = '';
+        const recursive = scrapeModeSelect ? (scrapeModeSelect.value === 'all') : false;
+        const depthVal = maxDepthSelect ? maxDepthSelect.value : 'unlimited';
+        const maxRecursiveDepth = depthVal === 'unlimited' ? null : parseInt(depthVal, 10);
+
+        // Fetch advanced options
+        const excludeImages = document.getElementById('excludeImages')?.checked || false;
+        const excludeVideos = document.getElementById('excludeVideos')?.checked || false;
+        const excludePdfs = document.getElementById('excludePdfs')?.checked || false;
+        const extraDomains = document.getElementById('extraDomains')?.value || '';
+
+        numberOfFiles = 0;
+        if (nFilesCount) nFilesCount.innerText = '0';
+        if (nFilesContainer) {
+          nFilesContainer.innerHTML = `${outputFormat === 'text' ? 'Downloaded Pages: ' : 'Downloaded Assets: '}<span id="nFiles" class="counter-number">0</span>`;
+          nFilesCount = document.getElementById('nFiles');
+          nFilesContainer.style.display = 'inline-flex';
+        }
+        if (logConsole) logConsole.innerHTML = '';
+        if (downloadWebsite) downloadWebsite.style.display = 'none';
+
+        if (progressBar) {
+          progressBar.style.width = '10%';
+          progressBar.style.opacity = '1';
+        }
+
+        if (progressWrapper) {
+          progressWrapper.style.display = 'flex';
+        }
+        if (progressStatus) {
+          progressStatus.innerText = 'Initializing crawler...';
+        }
+        if (progressFill) {
+          progressFill.style.width = '10%';
+          progressFill.style.backgroundColor = 'var(--primary-color)';
+        }
+        if (progressPercent) {
+          progressPercent.innerText = '10%';
+        }
+
+        if (stopBtn) {
+          stopBtn.style.display = 'inline-flex';
+          stopBtn.disabled = false;
+          stopBtn.innerHTML = '<i class="fa-solid fa-circle-stop"></i> Stop & Package';
+        }
+
+        if (statusBadge) {
+          statusBadge.style.display = 'inline-flex';
+          statusBadge.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Downloading...';
+          statusBadge.className = 'status-badge status-active';
+        }
+
+        downloadBtn.disabled = true;
+        downloadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+
+        const parsedUrls = website.split(/[\n,]/).map(u => u.trim()).filter(u => u.length > 0);
+        let logMessage = `Downloading ${website}`;
+        if (parsedUrls.length > 1) {
+          logMessage = `Downloading ${parsedUrls.length} websites in bulk`;
+        }
+        appendLog("Info", `${logMessage} (${recursive ? (maxRecursiveDepth ? `recursive up to ${maxRecursiveDepth} layers` : 'recursive unlimited') : 'single page'}) [Format: ${outputFormat}]...`);
+
+        socket.emit('request', { 
+          token: localStorage['token'], 
+          website,
+          recursive,
+          maxRecursiveDepth,
+          outputFormat,
+          cookies,
+          excludeImages,
+          excludeVideos,
+          excludePdfs,
+          extraDomains
+        });
+      };
+    }
+
+
+    function appendLog(type, text) {
+      if (!logConsole) return;
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      
+      let prefix = '>';
+      if (type === "Success") prefix = '✓';
+      if (type === "Info") prefix = 'i';
+      if (type === "System") prefix = '*';
+
+      line.innerHTML = `<span class="log-prefix">${prefix}</span> <span class="log-text">${escapeHtml(text)}</span>`;
+      logConsole.appendChild(line);
+      logConsole.scrollTop = logConsole.scrollHeight;
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function generateToken(n) {
+      var chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      var token = '';
+      for (var i = 0; i < n; i++) {
+        token += chars[Math.floor(Math.random() * chars.length)];
+      }
+      return token;
+    }
+  </script>
+</html>

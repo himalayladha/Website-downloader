@@ -1,4 +1,4 @@
-# Ignore everything by default
+﻿# Ignore everything by default
 *
 
 # Allow files in root
@@ -26,6 +26,13 @@
 !wget/**
 !archiver/
 !archiver/**
+
+# Allow production distribution
+!website-downloader-production/
+!website-downloader-production/**
+website-downloader-production/node_modules/
+website-downloader-production/public/sites/*
+!website-downloader-production/public/sites/.gitkeep
 
 # Ignore downloads inside public/sites
 public/sites/*

@@ -1,0 +1,149 @@
+﻿<div class="top-progress-bar-container">
+  <div id="progressBar" class="top-progress-bar"></div>
+</div>
+
+<nav class="navbar">
+  <div class="nav-container">
+    <div class="brand">
+      <div class="brand-icon">
+        <i class="fa-solid fa-download"></i>
+      </div>
+      <span class="brand-title">Website Downloader</span>
+    </div>
+    <div class="nav-status">
+      <span class="status-dot"></span>
+      <span>System Ready</span>
+    </div>
+  </div>
+</nav>
+
+<main class="main-container">
+  <div class="hero-section">
+    <div class="hero-badge">
+      <i class="fa-solid fa-bolt"></i> Production Workbench
+    </div>
+    <h1 class="hero-title">Download Website Assets</h1>
+    <p class="hero-subtitle">
+      Extract source code, templates, stylesheets, scripts, and media into a clean, portable archive.
+    </p>
+  </div>
+
+  <div class="main-card">
+    <div class="input-form">
+      <div class="input-wrapper">
+        <i class="fa-solid fa-globe input-icon"></i>
+        <textarea 
+          id="website" 
+          class="url-input" 
+          placeholder="https://example.com&#10;For bulk download, enter one link per line..."
+          rows="1"
+          autocomplete="off"
+          spellcheck="false"
+        ></textarea>
+      </div>
+      <button type="button" id="download" class="btn-primary">
+        <i class="fa-solid fa-arrow-down-long"></i> Start Download
+      </button>
+    </div>
+
+    <div class="settings-panel">
+      <div class="setting-group">
+        <label for="scrapeMode" class="setting-label">Download Mode</label>
+        <select id="scrapeMode" class="setting-select">
+          <option value="single">Single Page</option>
+          <option value="all" selected>All Linked Pages (Recursive)</option>
+        </select>
+      </div>
+      <div class="setting-group">
+        <label for="outputFormat" class="setting-label">Output Format</label>
+        <select id="outputFormat" class="setting-select">
+          <option value="zip" selected>ZIP Archive (Full Assets)</option>
+          <option value="text">Structured Text (Markdown)</option>
+        </select>
+      </div>
+      <div id="depthGroup" class="setting-group">
+        <label for="maxDepth" class="setting-label">Max Recursive Depth</label>
+        <select id="maxDepth" class="setting-select">
+          <option value="unlimited" selected>Unlimited (All Pages)</option>
+          <option value="1">1 page deep</option>
+          <option value="2">2 pages deep</option>
+          <option value="3">3 pages deep</option>
+          <option value="4">4 pages deep</option>
+          <option value="5">5 pages deep</option>
+        </select>
+      </div>
+      <div class="setting-group" style="grid-column: span 2;">
+        <label for="extraDomains" class="setting-label">Allowed Extra Domains (Subdomains)</label>
+        <input 
+          type="text" 
+          id="extraDomains" 
+          class="setting-input" 
+          placeholder="e.g. shop.example.com, blog.example.com"
+          autocomplete="off"
+        />
+      </div>
+      <div class="setting-group">
+        <label class="setting-label">Asset Exclusions</label>
+        <div class="checkbox-row">
+          <label class="checkbox-label">
+            <input type="checkbox" id="excludeImages" /> Images
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="excludeVideos" /> Videos
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="excludePdfs" /> PDFs
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="dashboard-status">
+      <div id="statusBadge" class="status-badge" style="display: none;">
+        Ready
+      </div>
+      <div id="nFilesP" class="files-counter" style="display: none;">
+        Downloaded Assets: <span id="nFiles" class="counter-number">0</span>
+      </div>
+    </div>
+
+    <div id="progressWrapper" class="progress-wrapper" style="display: none;">
+      <div class="progress-info">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span id="progressStatus" class="progress-status">Downloading assets...</span>
+          <button id="stopBtn" class="btn-stop" style="display: none;" title="Stop crawling early and package downloaded files">
+            <i class="fa-solid fa-circle-stop"></i> Stop & Package
+          </button>
+        </div>
+        <span id="progressPercent" class="progress-percentage">0%</span>
+      </div>
+      <div class="progress-track">
+        <div id="progressFill" class="progress-fill"></div>
+      </div>
+    </div>
+
+    <div class="terminal-container">
+      <div class="terminal-header">
+        <div class="terminal-title">
+          <i class="fa-solid fa-terminal"></i> Console Output
+        </div>
+        <div class="terminal-controls">
+          <span class="terminal-dot dot-red"></span>
+          <span class="terminal-dot dot-yellow"></span>
+          <span class="terminal-dot dot-green"></span>
+        </div>
+      </div>
+      <div id="logConsole" class="terminal-body">
+        <div class="log-placeholder">
+          Enter a URL above and click <strong>Start Download</strong> to begin scraping.
+        </div>
+      </div>
+    </div>
+
+    <div class="action-footer">
+      <button id="finalDownloadBtn" class="btn-success" style="display: none;">
+        <i class="fa-solid fa-file-zipper"></i> Download ZIP Archive
+      </button>
+    </div>
+  </div>
+</main>
