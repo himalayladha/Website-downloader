@@ -1,4 +1,4 @@
-<div class="top-progress-bar-container">
+﻿<div class="top-progress-bar-container">
   <div id="progressBar" class="top-progress-bar"></div>
 </div>
 
@@ -10,14 +10,21 @@
       </div>
       <span class="brand-title">Website Downloader</span>
     </div>
+    <div class="nav-status">
+      <span class="status-dot"></span>
+      <span>System Ready</span>
+    </div>
   </div>
 </nav>
 
 <main class="main-container">
   <div class="hero-section">
+    <div class="hero-badge">
+      <i class="fa-solid fa-bolt"></i> Production Workbench
+    </div>
     <h1 class="hero-title">Download Website Assets</h1>
     <p class="hero-subtitle">
-      Extract source code, templates, stylesheets, scripts, and images into a single ZIP file.
+      Extract source code, templates, stylesheets, scripts, and media into a clean, portable archive.
     </p>
   </div>
 
@@ -76,21 +83,20 @@
         />
       </div>
       <div class="setting-group">
-        <label class="setting-label">Exclusions</label>
-        <div class="checkbox-row" style="display: flex; gap: 16px; margin-top: 6px;">
-          <label class="checkbox-label" style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer; color: var(--text-main); font-weight: 500;">
+        <label class="setting-label">Asset Exclusions</label>
+        <div class="checkbox-row">
+          <label class="checkbox-label">
             <input type="checkbox" id="excludeImages" /> Images
           </label>
-          <label class="checkbox-label" style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer; color: var(--text-main); font-weight: 500;">
+          <label class="checkbox-label">
             <input type="checkbox" id="excludeVideos" /> Videos
           </label>
-          <label class="checkbox-label" style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer; color: var(--text-main); font-weight: 500;">
+          <label class="checkbox-label">
             <input type="checkbox" id="excludePdfs" /> PDFs
           </label>
         </div>
       </div>
     </div>
-
 
     <div class="dashboard-status">
       <div id="statusBadge" class="status-badge" style="display: none;">
@@ -102,8 +108,8 @@
     </div>
 
     <div id="progressWrapper" class="progress-wrapper" style="display: none;">
-      <div class="progress-info" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-        <div style="display: flex; align-items: center; gap: 8px;">
+      <div class="progress-info">
+        <div style="display: flex; align-items: center; gap: 10px;">
           <span id="progressStatus" class="progress-status">Downloading assets...</span>
           <button id="stopBtn" class="btn-stop" style="display: none;" title="Stop crawling early and package downloaded files">
             <i class="fa-solid fa-circle-stop"></i> Stop & Package
@@ -118,11 +124,18 @@
 
     <div class="terminal-container">
       <div class="terminal-header">
-        <span class="terminal-title"><i class="fa-solid fa-terminal"></i> Console Log</span>
+        <div class="terminal-title">
+          <i class="fa-solid fa-terminal"></i> Console Output
+        </div>
+        <div class="terminal-controls">
+          <span class="terminal-dot dot-red"></span>
+          <span class="terminal-dot dot-yellow"></span>
+          <span class="terminal-dot dot-green"></span>
+        </div>
       </div>
       <div id="logConsole" class="terminal-body">
         <div class="log-placeholder">
-          Enter a URL above and click <strong>Start Download</strong>.
+          Enter a URL above and click <strong>Start Download</strong> to begin scraping.
         </div>
       </div>
     </div>
