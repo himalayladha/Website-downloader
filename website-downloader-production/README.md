@@ -6,10 +6,19 @@ A modern, high-speed website scraper and asset extraction tool with support for 
 
 ## 🚀 Quick Start (Windows)
 
-Simply **double-click** `start.bat`:
-1. It automatically verifies Node.js is installed.
-2. It auto-installs dependencies on first launch if needed (`npm install`).
-3. It launches the server in the background and opens **`http://localhost:3000`** in your browser automatically.
+### Step 1: Run Setup (Once)
+Double-click **`setup.bat`**:
+* Verifies Node.js & npm.
+* Installs all dependencies into `node_modules` locally so the app is **100% offline-ready**.
+* Automatically generates **`start.bat`**.
+* Optionally starts the application immediately.
+
+### Step 2: Everyday Use
+Whenever you want to use the app, simply double-click **`start.bat`**:
+* Launches the server in the background instantly (no installation delays).
+* Automatically opens **`http://localhost:3000`** in your default browser.
+* Provides a clean dashboard with options to Open Browser, Stop, Restart, or Exit.
+* Automatically shuts down when you close all browser tabs.
 
 ---
 
@@ -48,7 +57,8 @@ http://localhost:3000
 ```
 website-downloader-production/
 ├── bin/
-│   └── www                    # Server HTTP & Socket.IO listener
+│   ├── www                    # Server HTTP & Socket.IO listener
+│   └── generate-start-bat.js  # Generator script for start.bat
 ├── public/
 │   ├── stylesheets/
 │   │   └── style.css          # Shadcn dark design system
@@ -66,7 +76,8 @@ website-downloader-production/
 ├── app.js                     # Express application configuration
 ├── package.json               # Package dependencies & metadata
 ├── README.md                  # Documentation
-└── start.bat                  # 1-Click launcher & control panel
+├── setup.bat                  # 1-Click initial setup (offline install & generator)
+└── start.bat                  # 1-Click daily launcher & control panel
 ```
 
 ---

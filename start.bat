@@ -1,95 +1,73 @@
 @echo off
-title Website Downloader Control Panel
+title Website Downloader
 setlocal enabledelayedexpansion
 
-:: Validate Node.js is installed on startup
-where node >nul 2>&1
+:: Check if server is running on port 3000
+netstat -aon | findstr /C:"LISTENING" | findstr :3000 >nul 2>&1
 if %errorlevel% neq 0 (
-    echo ===================================================
-    echo [ERROR] Node.js is not installed!
-    echo Please install Node.js from https://nodejs.org/ first.
-    echo ===================================================
-    pause
-    exit /b
-)
-
-:: Check if node_modules exists, install if missing before starting the panel
-if not exist "node_modules\" (
-    echo ===================================================
-    echo [INFO] Dependencies not found. Installing...
-    echo ===================================================
-    call npm install
-    if !errorlevel! neq 0 (
-        echo [ERROR] Dependency installation failed!
-        pause
-        exit /b
-    )
-    echo [INFO] Dependencies installed successfully.
+    echo [INFO] Starting Website Downloader server...
+    start "Website Downloader Server" /min cmd /c "npm start"
+    start /b cmd /c "timeout /t 3 /nobreak >nul && start http://localhost:3000"
+    echo [INFO] Server launched. Opening browser at http://localhost:3000...
     timeout /t 2 >nul
+) else (
+    start "" "http://localhost:3000"
 )
 
 :menu
 cls
 echo ===================================================
-echo             WEBSITE DOWNLOADER CONTROL PANEL
+echo               WEBSITE DOWNLOADER                   
 echo ===================================================
 echo.
 
 :: Check Server Status
 netstat -aon | findstr /C:"LISTENING" | findstr :3000 >nul 2>&1
 if %errorlevel% equ 0 (
-    echo  Server Status: [RUNNING]
-    echo  Local Address: http://localhost:3000
+    echo  Server Status : [RUNNING]
+    echo  Local Address : http://localhost:3000
 ) else (
-    echo  Server Status: [STOPPED]
+    echo  Server Status : [STOPPED]
 )
 echo ===================================================
 echo.
-echo  [1] Start Server
+echo  [1] Open in Browser (http://localhost:3000)
 echo  [2] Stop Server
 echo  [3] Restart Server
-echo  [4] Run Clean Dependency Install
-echo  [5] Exit
+echo  [4] Exit
 echo.
 echo ===================================================
-set /p choice="Enter option [1-5]: "
+set /p choice="Select an option [1-4]: "
 
-if "%choice%"=="1" goto start_server
+if "%choice%"=="1" goto open_browser
 if "%choice%"=="2" goto stop_server
 if "%choice%"=="3" goto restart_server
-if "%choice%"=="4" goto install_deps
-if "%choice%"=="5" goto exit_panel
+if "%choice%"=="4" goto exit_panel
 goto menu
 
-:start_server
+:open_browser
 echo.
 netstat -aon | findstr /C:"LISTENING" | findstr :3000 >nul 2>&1
-if %errorlevel% equ 0 (
-    echo [INFO] Server is already running. Opening browser...
-    start "" "http://localhost:3000"
-    timeout /t 2 >nul
-    goto menu
+if %errorlevel% neq 0 (
+    echo [INFO] Server is stopped. Starting server...
+    start "Website Downloader Server" /min cmd /c "npm start"
+    timeout /t 2 /nobreak >nul
 )
-
-echo [INFO] Starting server in background...
-start "Website Downloader Server" /min cmd /c "npm start"
-start /b cmd /c "timeout /t 3 /nobreak >nul && start http://localhost:3000"
-echo [INFO] Server launched. Opening browser shortly...
-timeout /t 2 >nul
+start "" "http://localhost:3000"
 goto menu
 
 :stop_server
 echo.
-echo [INFO] Stopping server...
+echo [INFO] Stopping server on port 3000...
 set "killed=0"
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr /C:"LISTENING" ^| findstr :3000') do (
     taskkill /F /PID %%a >nul 2>&1
     set "killed=1"
 )
 if "!killed!"=="1" (
-    echo [INFO] Server stopped successfully.
+    echo [SUCCESS] Server stopped.
 ) else (
-    echo [INFO] No running server found on port 3000.
+    echo [INFO] Server was not running.
 )
 timeout /t 2 >nul
 goto menu
@@ -103,24 +81,12 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr /C:"LISTENING" ^| findstr :30
 timeout /t 1 /nobreak >nul
 start "Website Downloader Server" /min cmd /c "npm start"
 start /b cmd /c "timeout /t 3 /nobreak >nul && start http://localhost:3000"
-echo [INFO] Server restarted. Opening browser shortly...
+echo [SUCCESS] Server restarted. Opening browser...
 timeout /t 2 >nul
-goto menu
-
-:install_deps
-echo.
-echo [INFO] Running clean npm install...
-if exist "node_modules\" (
-    echo [INFO] Removing existing node_modules...
-    rmdir /s /q node_modules
-)
-call npm install
-echo [INFO] Dependencies installed successfully.
-pause
 goto menu
 
 :exit_panel
 echo.
-echo Thank you for using Website Downloader. Goodbye!
-timeout /t 2 >nul
+echo Goodbye!
+timeout /t 1 >nul
 exit
